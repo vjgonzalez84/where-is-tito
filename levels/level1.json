@@ -1,0 +1,23 @@
+{
+  "levelNumber": 1,
+  "title": "Nivel 1: El Gran Valle",
+  "imageSrc": "https://picsum.photos/id/1015/3840/2160",
+  "imageWidth": 3840,
+  "imageHeight": 2160,
+  "targets": [
+    {
+      "id": "target_1",
+      "name": "Tito Explorador",
+      "avatar": "https://picsum.photos/id/64/100/100",
+      "hint": "Cerca de las rocas en la parte superior izquierda",
+      "hitbox": { "x": 25.0, "y": 35.0, "width": 4.0, "height": 7.0 }
+    },
+    {
+      "id": "target_2",
+      "name": "Tito Pescador",
+      "avatar": "https://picsum.photos/id/100/100/100",
+      "hint": "Cerca del agua en la zona inferior derecha",
+      "hitbox": { "x": 70.0, "y": 65.0, "width": 4.0, "height": 7.0 }
+    }
+  ]
+}
