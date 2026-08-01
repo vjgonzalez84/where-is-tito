@@ -5,13 +5,18 @@
   "imageWidth": 3840,
   "imageHeight": 2160,
   "targets": [
-    {
-      "id": "target_1",
-      "name": "Tito Explorador",
-      "avatar": "https://picsum.photos/id/64/100/100",
-      "hint": "Cerca de las rocas en la parte superior izquierda",
-      "hitbox": { "x": 25.0, "y": 35.0, "width": 4.0, "height": 7.0 }
-    },
+{
+  "id": "tito_principal",
+  "name": "Tito el Perrito",
+  "avatar": "assets/avatars/tito_perdido.jpg",
+  "hint": "Lleva puesto su infaltable gorro rojo con blanco y anteojos.",
+  "hitbox": {
+    "x": 45.0,
+    "y": 50.0,
+    "width": 5.0,
+    "height": 8.0
+  }
+},
     {
       "id": "target_2",
       "name": "Tito Pescador",
