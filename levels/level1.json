@@ -17,12 +17,17 @@
     "height": 8.0
   }
 },
-    {
-      "id": "target_2",
-      "name": "Tito Pescador",
-      "avatar": "https://picsum.photos/id/100/100/100",
-      "hint": "Cerca del agua en la zona inferior derecha",
-      "hitbox": { "x": 70.0, "y": 65.0, "width": 4.0, "height": 7.0 }
-    }
+{
+  "id": "lola",
+  "name": "Lola",
+  "avatar": "assets/avatars/lola.jpg",
+  "hint": "Tiene pelo rizado y viste una campera azul con estampado de flores.",
+  "hitbox": {
+    "x": 60.0,
+    "y": 40.0,
+    "width": 5.0,
+    "height": 8.0
+  }
+}
   ]
 }
