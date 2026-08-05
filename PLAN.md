@@ -1,0 +1,153 @@
+# Plan de Desarrollo: "¿Dónde está Tito?"
+
+**Tipo de proyecto:** Aplicación web interactiva (desktop, tablet y smartphone)
+**Estilo:** Búsqueda visual estilo *Where's Waldo?* — Tito, una mascota perdida, se esconde en 10 escenarios históricos ambientados por época.
+
+> Este documento reemplaza un borrador previo generado con un modelo de menor calidad, que contenía dos matrices de escenarios contradictorias (una tabla histórica en la sección de dificultad y prompts de IA para temáticas distintas de fantasía/cyberpunk). Se resolvió la contradicción con el usuario: **la matriz histórica es la canónica**; los prompts de fantasía/cyberpunk se descartan.
+
+## 0. Estado actual del repositorio
+
+Ya existe un prototipo funcional de un solo archivo (`index.html`, ~310 líneas, JS vanilla sin dependencias) que cubre buena parte de la Fase 1:
+
+| Implementado | Pendiente |
+| :--- | :--- |
+| Carga dinámica de nivel vía `fetch` a `levels/levelN.json` | Solo existe `level1.json`; faltan los 9 restantes |
+| Pan y zoom con mouse (drag + rueda) | Sin soporte táctil (touch drag, pinch-to-zoom) |
+| Clamp de posición dentro del lienzo | Sin rebote elástico (bounce back) en los límites |
+| Minimapa con recuadro de viewport | Minimapa no es arrastrable/interactivo todavía |
+| Barra superior con avatares de objetivos y estado "encontrado" | Sin transición automática al siguiente nivel tras ganar |
+| Hitboxes en % (x/y/width/height) sobre el JSON | Hitboxes son `<div>` visibles (borde rojo punteado) — hoy están pensadas para calibración, deben ocultarse en producción |
+| Modal de victoria | Sin selector de nivel / progreso persistente entre niveles |
+| `imageSrc` de `level1.json` apunta a un placeholder de Picsum | Falta el arte final 4K de cada escenario |
+
+Personajes ya definidos en `level1.json` y `assets/avatars/`:
+- **Tito** (`tito_perdido.jpg`) — la mascota perdida, cuerpo de perro con gorro rojo/blanco y anteojos.
+- **Lola** (`lola.jpg`) — humana, pelo rizado, campera azul con flores, una de las que busca a Tito.
+
+Nota: `assets/avatars/asd` es un archivo vacío/basura de un commit anterior ("Create asd"); se puede eliminar cuando se limpie el repo.
+
+## 1. Resumen del concepto
+
+El jugador busca a **Tito**, una mascota perdida, dentro de escenarios históricos densamente ilustrados. Junto a Tito, otros personajes principales (empezando por **Lola**) también deben encontrarse en cada nivel — son quienes lo buscan o interactúan con la escena. El jugador hace clic/toca directamente sobre los personajes objetivo; al encontrar a todos, el nivel se completa y desbloquea el siguiente.
+
+**Regla de identidad de personajes:** Tito, Lola y el resto de personajes principales **no cambian de vestuario por época**. El usuario provee las imágenes/modelos de estos personajes tal cual se ven hoy (perro con gorro rojo/blanco y anteojos; Lola con campera azul floral), y se insertan sin alterar en cada fondo durante la post-producción. Solo los **personajes secundarios de relleno** (la multitud de fondo generada por IA) se visten acorde a la época del escenario.
+
+## 2. Interfaz de usuario (UI) y experiencia de juego
+
+- **Barra superior (header de objetivos):** Rostros/avatares de los personajes a buscar, recortados en círculo. Al encontrar a un personaje recibe una marca visual (check + desaturado) — *ya implementado*.
+- **Área principal de búsqueda (viewport):** Escenario en alta resolución, sin deformar la proporción de aspecto original.
+  - *Desktop:* clic-y-arrastre, scroll, zoom con rueda de mouse — *ya implementado*.
+  - *Dispositivos móviles:* touch drag + pinch-to-zoom — *pendiente*.
+- **Minimapa (esquina inferior izquierda):** Vista miniaturizada completa del escenario con recuadro verde que señala la porción visible. Debe poder arrastrarse para navegar — recuadro visual *implementado*, interactividad de arrastre *pendiente*.
+- **Notificación de victoria (pop-up):** Mensaje animado "¡Ganador!" al completar la búsqueda, con opción de avanzar al siguiente nivel — modal base *implementado*, avance automático de nivel *pendiente*.
+
+## 3. Especificaciones de lienzo, resolución y aspect ratio
+
+- **Relación de aspecto canónica:** 16:9.
+- **Resolución base de trabajo:** 3840 × 2160 px (4K UHD), para mantener nitidez al hacer zoom in de hasta 2x–4x en dispositivos móviles o pantallas 1080p.
+
+## 4. Niveles de dificultad y matriz de escenarios
+
+| Grupo de dificultad | Niveles / escenarios | Escala elementos | Densidad y dispersión | Visibilidad de objetivos |
+| :--- | :--- | :--- | :--- | :--- |
+| Fácil | 1. Egipto Antiguo · 2. Roma Antigua · 3. Edad Media | 1.0x | Baja cantidad de personajes y objetos. Mayor dispersión/espacio libre. | Cuerpo completo visible, sin obstrucciones principales. |
+| Media | 4. Puerto Caribeño · 5. Ruta de la Seda · 6. Viejo Oeste | 0.9x | Cantidad media de personajes y objetos, menos espacio libre entre ellos. | Medio cuerpo visible, ligeramente camuflado entre la multitud. |
+| Alta | 7. París 1889 · 8. Años 20 (Jazz) · 9. Festival Hippie 60/70 | 0.8x | Alta densidad de personajes y objetos, muy poca dispersión. | Parcialmente ocultos: solo cara y alguna extremidad (ej. una mano). |
+| Muy alta | 10. Estación Espacial (futuro) | 0.7x | Saturación máxima, aglomeración continua. | Especialmente escondido: solo la cabeza visible (sin cuerpo). |
+
+`level1.json` hoy usa un placeholder Picsum de 3840×2160 — ya respeta la resolución base, falta reemplazar por el arte final de "Egipto Antiguo".
+
+## 5. Lineamientos para inserción y ubicación de personajes principales
+
+- **Definición por nivel:** cada mapa define la cantidad de personajes principales a buscar, con descripción de la acción/pose que realiza cada uno y su avatar para la barra superior.
+- **Regla de dispersión máxima:** los personajes a buscar se distribuyen ampliamente por el mapa. Prohibido agruparlos en el mismo cuadrante o zona inmediata.
+- **Integración con la escena:** cada personaje realiza una acción contextual coherente con la época (interactuando con un objeto o personaje secundario), respetando el nivel de visibilidad de la matriz de dificultad — pero sin alterar su vestuario/diseño base (ver regla de identidad en §1).
+
+## 6. Metodología de generación de escenarios con IA y post-producción
+
+Flujo híbrido para el arte de fondo en 4K de cada nivel:
+
+1. **Generación del fondo base con IA:** prompts estandarizados en el estilo *Where's Waldo?* (líneas de tinta limpias, paleta saturada, alta densidad de personajes de relleno vestidos según la época), **sin incluir a Tito, Lola ni al resto de personajes principales** — esos se insertan a mano después.
+2. **Post-producción manual:** se abre el fondo generado en un editor gráfico y se insertan las imágenes ya provistas de Tito, Lola y demás personajes principales, sin alterar su diseño, en ubicaciones estratégicas siguiendo la regla de dispersión.
+3. **Calibración de hitboxes:** una vez posicionados en la escena final, se calculan sus coordenadas porcentuales exactas (`x`, `y`, `width`, `height`) y se registran en el JSON del nivel — el prototipo actual ya soporta este formato.
+
+### Prompt estandarizado (plantilla)
+
+Se redacta un prompt por escenario siguiendo esta plantilla, ajustando solo el `[ENTORNO]` y los elementos de época; **excluye explícitamente a los personajes principales**:
+
+> `A massive, detailed panoramic illustration of [ENTORNO], in the style of Martin Handford's Where's Waldo. The scene is packed with hundreds of tiny, diverse background characters dressed and behaving accordingly to the era, performing funny everyday activities. Richly detailed period-accurate environment and props. Crisp clean ink lines, vivid saturated color palette. High resolution 4K, wide aspect ratio 16:9, top-down isometric panoramic perspective, cluttered composition with balanced open, empty areas reserved for placing hidden principal characters later. Do not include any specific named or recurring characters — background crowd only.`
+
+Pendiente: redactar el `[ENTORNO]` específico para cada uno de los 10 mapas de la tabla del §4 (hoy no existe ninguno redactado con esta plantilla corregida).
+
+## 7. Arquitectura técnica y responsive
+
+### A. Sistema de coordenadas y hitboxes invisibles
+- No se usan píxeles fijos: las zonas de clic se calculan en porcentajes (%) relativos al ancho/alto original del escenario — **ya implementado** en `renderHitboxes()`.
+- Para producción, las hitboxes deben ser invisibles (hoy tienen borde rojo punteado para fines de calibración) — ajuste pendiente.
+
+### B. Reglas y límites de zoom (constraints)
+- **Zoom out máximo (minZoom):** calculado dinámicamente para que la imagen ocupe el 100% de la ventana sin bordes vacíos (modo *contain*) — **ya implementado** en `calculateMinScale()`.
+- **Zoom in máximo (maxZoom):** entre 2.5x y 4.0x según la resolución base — hoy fijo en 3.5x, falta diferenciar por dispositivo.
+- **Comportamiento responsive objetivo:**
+  | Dispositivo | Zoom inicial | Zoom in máximo |
+  | :--- | :--- | :--- |
+  | Desktop | 1.0x | 3.0x |
+  | Tablet | 1.2x | 3.5x |
+  | Smartphone | 1.5x | 4.0x |
+- **Efectos UX pendientes:** rebote elástico (bounce back) al exceder límites en táctil, re-centrado automático si la vista se sale del escenario.
+
+### C. Estructura de datos para niveles (JSON)
+
+Formato ya validado y en uso por `level1.json` (se ajustan nombres de campo mínimamente respecto al borrador original para igualar la implementación real):
+
+```json
+{
+  "levelNumber": 1,
+  "title": "Nivel 1: Egipto Antiguo",
+  "imageSrc": "assets/levels/egipto_antiguo.jpg",
+  "imageWidth": 3840,
+  "imageHeight": 2160,
+  "targets": [
+    {
+      "id": "tito_perdido",
+      "name": "Tito el Perrito",
+      "avatar": "assets/avatars/tito_perdido.jpg",
+      "hint": "Lleva puesto su infaltable gorro rojo con blanco y anteojos.",
+      "hitbox": { "x": 45.0, "y": 50.0, "width": 5.0, "height": 8.0 }
+    },
+    {
+      "id": "lola",
+      "name": "Lola",
+      "avatar": "assets/avatars/lola.jpg",
+      "hint": "Tiene pelo rizado y viste una campera azul con estampado de flores.",
+      "hitbox": { "x": 60.0, "y": 40.0, "width": 5.0, "height": 8.0 }
+    }
+  ]
+}
+```
+
+## 8. Stack tecnológico
+
+- **Prototipo actual:** JS vanilla + CSS transforms para pan/zoom, sin librerías — funcional para la Fase 1 en desktop.
+- **Evaluar para Fase 2+ (si el prototipo vanilla se queda corto en gestos táctiles/performance):** Konva.js, PixiJS u OpenSeadragon para manejo de capas, límites de zoom y eventos sobre hitboxes.
+- **Frontend UI:** HTML5, CSS3, JavaScript (estado del juego, minimapa, header de objetivos, modales) — sin cambios respecto al borrador original.
+
+## 9. Fases de desarrollo
+
+1. **Fase 1: Prototipo base (PoC)** — motor de pan/zoom, límites min/max, recuadro de minimapa, detección de clics en porcentaje. **~80% completo**: falta rebote elástico, minimapa arrastrable y soporte táctil.
+2. **Fase 2: Interfaz de usuario y niveles** — barra superior, modales de victoria, carga dinámica de JSON por nivel. **Base completa**; falta flujo de avance automático entre niveles y selector/progreso de niveles.
+3. **Fase 3: Integración de personajes y calibración** — generación de los 10 escenarios vía IA (con la plantilla de prompt del §6, sin personajes principales), inserción manual de Tito/Lola/demás y ajuste fino de hitboxes. **No iniciada** — solo existe el placeholder de Picsum en el nivel 1.
+4. **Fase 4: Optimización mobile y pruebas** — gestos táctiles, comportamiento elástico del zoom, rendimiento en distintos dispositivos. **No iniciada.**
+
+## 10. Próximos pasos sugeridos
+
+1. Redactar los 10 prompts de escenario (§6) usando la plantilla, uno por fila del §4.
+2. Implementar soporte táctil (touch drag + pinch-to-zoom) y rebote elástico en `index.html`.
+   - Unificar mouse y touch con Pointer Events (`pointerdown/move/up/cancel`) en vez de duplicar handlers de mouse y touch por separado — el drag de mouse y el de 1 dedo pasan a ser el mismo código.
+   - Detectar pinch-to-zoom con un `Map` de punteros activos: 1 puntero = pan, 2 punteros = pinch (distancia entre puntos → escala, punto medio → ancla del zoom).
+   - Rebote elástico: separar `clampPositions()` en un modo de resistencia progresiva mientras dura el gesto, y un snap-back animado (transición CSS) al soltar, para posición y para escala.
+   - Contemplar también el pinch-to-zoom de trackpad (Mac/Windows): el navegador lo reporta como evento `wheel` con `ctrlKey: true`, no como evento de puntero — sin este chequeo extra en el listener de `wheel` existente, el pellizco en trackpad no hace zoom (el scroll con mouse no se ve afectado, sigue funcionando igual).
+3. Hacer el minimapa interactivo (arrastrar el recuadro para navegar).
+4. Definir y crear `levels/level2.json` … `level10.json` con la misma estructura que `level1.json`.
+5. Ocultar las hitboxes en producción (mantener un modo debug opcional para calibración).
+6. Implementar avance automático al siguiente nivel desde el modal de victoria.

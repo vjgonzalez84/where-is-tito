@@ -116,8 +116,14 @@
     let scale = 1, minScale = 1;
     const maxScale = 3.5;
     let posX = 0, posY = 0;
-    let isDragging = false;
-    let startX = 0, startY = 0;
+
+    // Estado de gestos (Pointer Events unificado: mouse + touch)
+    const RUBBER_BAND_FACTOR = 0.55;
+    const activePointers = new Map(); // pointerId -> {x, y}
+    let gestureStartPosX = 0, gestureStartPosY = 0;
+    let gestureStartScale = 1;
+    let gestureStartClientX = 0, gestureStartClientY = 0;
+    let gestureStartDist = 0;
 
     // DOM References
     const container = document.getElementById('game-container');
@@ -219,14 +225,31 @@
       scale = minScale;
     }
 
-    function clampPositions() {
-      const maxTransX = 0;
-      const minTransX = container.clientWidth - (levelData.imageWidth * scale);
-      const maxTransY = 0;
-      const minTransY = container.clientHeight - (levelData.imageHeight * scale);
+    function getBounds(forScale = scale) {
+      return {
+        maxTransX: 0,
+        minTransX: container.clientWidth - (levelData.imageWidth * forScale),
+        maxTransY: 0,
+        minTransY: container.clientHeight - (levelData.imageHeight * forScale),
+      };
+    }
 
-      posX = Math.min(maxTransX, Math.max(minTransX, posX));
-      posY = Math.min(maxTransY, Math.max(minTransY, posY));
+    function clampPositions() {
+      const b = getBounds();
+      posX = Math.min(b.maxTransX, Math.max(b.minTransX, posX));
+      posY = Math.min(b.maxTransY, Math.max(b.minTransY, posY));
+    }
+
+    function rubberBandClamp(value, min, max) {
+      if (value < min) return min - (min - value) * RUBBER_BAND_FACTOR;
+      if (value > max) return max + (value - max) * RUBBER_BAND_FACTOR;
+      return value;
+    }
+
+    function applyRubberBand() {
+      const b = getBounds();
+      posX = rubberBandClamp(posX, b.minTransX, b.maxTransX);
+      posY = rubberBandClamp(posY, b.minTransY, b.maxTransY);
     }
 
     function centerImage() {
@@ -234,10 +257,37 @@
       posY = (container.clientHeight - levelData.imageHeight * scale) / 2;
     }
 
-    function updateTransform() {
-      clampPositions();
+    function updateTransform(opts = {}) {
+      if (opts.interacting) {
+        applyRubberBand();
+      } else {
+        clampPositions();
+      }
       wrapper.style.transform = `translate(${posX}px, ${posY}px) scale(${scale})`;
       updateMinimap();
+    }
+
+    // Anima de vuelta dentro de los límites válidos (posición y escala) al soltar el gesto
+    function snapBack() {
+      const targetScale = Math.min(maxScale, Math.max(minScale, scale));
+      const b = getBounds(targetScale);
+      const targetX = Math.min(b.maxTransX, Math.max(b.minTransX, posX));
+      const targetY = Math.min(b.maxTransY, Math.max(b.minTransY, posY));
+
+      if (targetScale === scale && targetX === posX && targetY === posY) return;
+
+      scale = targetScale;
+      posX = targetX;
+      posY = targetY;
+
+      wrapper.style.transition = 'transform 280ms cubic-bezier(0.16, 1, 0.3, 1)';
+      updateTransform();
+
+      const clearTransition = () => {
+        wrapper.style.transition = '';
+        wrapper.removeEventListener('transitionend', clearTransition);
+      };
+      wrapper.addEventListener('transitionend', clearTransition);
     }
 
     function updateMinimap() {
@@ -265,27 +315,102 @@
       miniViewport.style.transform = `translate(${boxX}px, ${boxY}px)`;
     }
 
-    // --- EVENTOS DE INTERACCIÓN ---
+    // --- EVENTOS DE INTERACCIÓN (Pointer Events: mouse + touch unificados) ---
+    function resetGestureStart() {
+      const pts = Array.from(activePointers.values());
+      gestureStartPosX = posX;
+      gestureStartPosY = posY;
+      gestureStartScale = scale;
+
+      if (pts.length === 1) {
+        gestureStartClientX = pts[0].x;
+        gestureStartClientY = pts[0].y;
+      } else if (pts.length === 2) {
+        gestureStartDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+        gestureStartClientX = (pts[0].x + pts[1].x) / 2;
+        gestureStartClientY = (pts[0].y + pts[1].y) / 2;
+      }
+    }
+
+    function updateFromActiveGesture() {
+      const pts = Array.from(activePointers.values());
+
+      if (pts.length === 1) {
+        // Pan: 1 dedo o mouse arrastrando — mismo código para ambos
+        posX = gestureStartPosX + (pts[0].x - gestureStartClientX);
+        posY = gestureStartPosY + (pts[0].y - gestureStartClientY);
+        updateTransform({ interacting: true });
+
+      } else if (pts.length === 2) {
+        // Pinch-to-zoom: 2 dedos — la distancia entre puntos define la escala,
+        // el punto medio actúa como ancla (se mantiene fijo en pantalla)
+        const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+        const rawScale = gestureStartScale * (dist / gestureStartDist);
+        const newScale = rubberBandClamp(rawScale, minScale, maxScale);
+
+        const midX = (pts[0].x + pts[1].x) / 2;
+        const midY = (pts[0].y + pts[1].y) / 2;
+        const rect = container.getBoundingClientRect();
+
+        // Punto del contenido que estaba bajo el punto medio al iniciar el pinch
+        const contentX = (gestureStartClientX - rect.left - gestureStartPosX) / gestureStartScale;
+        const contentY = (gestureStartClientY - rect.top - gestureStartPosY) / gestureStartScale;
+
+        scale = newScale;
+        posX = (midX - rect.left) - contentX * newScale;
+        posY = (midY - rect.top) - contentY * newScale;
+
+        updateTransform({ interacting: true });
+      }
+    }
+
     function setupEvents() {
-      container.addEventListener('mousedown', (e) => {
-        isDragging = true;
-        startX = e.clientX - posX;
-        startY = e.clientY - posY;
+      container.addEventListener('pointerdown', (e) => {
+        // Un tap sobre una hitbox no debe iniciar un gesto de pan/pinch:
+        // se deja pasar para que el listener 'click' de la hitbox lo resuelva.
+        if (e.target.closest('.hitbox')) return;
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+
+        container.setPointerCapture(e.pointerId);
+        activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        resetGestureStart();
       });
 
-      window.addEventListener('mousemove', (e) => {
-        if (!isDragging) return;
-        posX = e.clientX - startX;
-        posY = e.clientY - startY;
-        updateTransform();
+      container.addEventListener('pointermove', (e) => {
+        if (!activePointers.has(e.pointerId)) return;
+        activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        updateFromActiveGesture();
       });
 
-      window.addEventListener('mouseup', () => isDragging = false);
+      const endPointer = (e) => {
+        if (!activePointers.has(e.pointerId)) return;
+        activePointers.delete(e.pointerId);
+
+        if (activePointers.size === 0) {
+          snapBack();
+        } else {
+          // Queda un dedo activo tras un pinch: reiniciar referencia para que
+          // el pan continúe sin saltos
+          resetGestureStart();
+        }
+      };
+
+      container.addEventListener('pointerup', endPointer);
+      container.addEventListener('pointercancel', endPointer);
 
       container.addEventListener('wheel', (e) => {
         e.preventDefault();
-        const zoomFactor = e.deltaY < 0 ? 1.15 : 0.85;
-        const newScale = Math.min(maxScale, Math.max(minScale, scale * zoomFactor));
+
+        let newScale;
+        if (e.ctrlKey) {
+          // Pinch-to-zoom de trackpad: el navegador lo reporta como wheel + ctrlKey,
+          // no como evento de puntero — sin este caso el pellizco en trackpad no haría zoom.
+          newScale = scale * Math.exp(-e.deltaY * 0.01);
+        } else {
+          const zoomFactor = e.deltaY < 0 ? 1.15 : 0.85;
+          newScale = scale * zoomFactor;
+        }
+        newScale = Math.min(maxScale, Math.max(minScale, newScale));
 
         const rect = container.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
