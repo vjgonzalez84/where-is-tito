@@ -75,7 +75,7 @@ La columna de negativos aplica **además** de la lista negativa universal del §
 
 Criterios para elegir cada sitio, una vez generado y escalado el fondo:
 
-- **Hueco intersticial, no claro.** El espacio entre dos figuras de fondo, del tamaño de un personaje (~192 × 173 px a 1.0x, ver §6) más un pequeño margen. En los libros originales Wally nunca está en un descampado: está encajado en la multitud.
+- **Hueco intersticial, no claro.** El espacio entre dos figuras de fondo, del tamaño de un personaje (medido por lámina, ver la nota de escala más abajo) más un pequeño margen. En los libros originales Wally nunca está en un descampado: está encajado en la multitud.
 - **Suelo transitable debajo.** Con vista casi cenital el personaje tiene un punto de contacto implícito; si el hueco cae sobre agua, un techo o una pared, flota.
 - **Vecinos de escala comparable.** El hueco debe lindar con figuras humanas de altura estándar, no con estatuas ni con elementos lejanos.
 - **Contraste cromático local — la palanca real de dificultad.** Que Tito se encuentre fácil o difícil depende casi enteramente del color inmediatamente detrás de él, no de la densidad global. El gorro rojo/blanco contra un muro beige salta al instante por más cargada que esté la lámina; contra un toldo a rayas rojas y blancas desaparece. Por eso en los niveles altos conviene pedir **escenografía** rojo/blanco (toldos, banderines, sombrillas, carpas) y no solo gente a rayas.
@@ -96,13 +96,23 @@ Herramienta: `~/tools/upscale/grid.py` superpone una grilla porcentual sobre la 
 
 ### Requisitos de los assets de personaje
 
-Revisados los archivos existentes, hay tres problemas que resolver antes de poder componer:
+Revisados los archivos existentes — `tito_perdido.jpg` (1024 × 819) y `lola.jpg` (768 × 1024), ambos JPG sobre blanco:
 
-- **No tienen canal alfa.** `tito_perdido.jpg` (1024 × 819) y `lola.jpg` (768 × 1024) son JPG sobre fondo blanco. Para pegarlos hace falta recorte con transparencia, y el JPG deja artefactos de compresión alrededor de la tinta, así que un simple *white key* deja halo. Necesitan recorte real (rembg o manual) con defringe, y guardarse como PNG.
-- **Lola está parada sobre un pedestal de piedra** que no forma parte del personaje y hay que eliminar en el recorte.
-- **El estilo no coincide con el fondo.** Ambos tienen línea de grosor variable, trama interna (el pelaje de Tito, los rizos de Lola) y sombreado suave en pliegues. El fondo generado es plano, de contorno uniforme y con mucho menos detalle interno. Al reducirlos al tamaño del vecindario, esa trama fina se convierte en suciedad y además delata que son de otra mano. Requieren pasada de simplificación: engrosar y uniformar el contorno, quitar sombreado y trama.
+- **No tienen canal alfa,** y el formato no lo soporta: hay que fabricar la transparencia y guardar en PNG. En la práctica es barato. El fondo es uniforme (65–68% blanco puro medido) y un umbral simple `R,G,B > 240` sobre el original a resolución completa lo resuelve: **no perfora los blancos propios de los personajes** — la punta de la cola de Tito, su pecho, sus patas y la banda del gorro están dibujados en crema sombreado, no en blanco puro. El borde duro que deja el umbral se antialiasea solo al reducir la figura al 25%. No hace falta rembg.
+- **Lola está parada sobre un pedestal de piedra** que no forma parte del personaje. Es lo único que no resuelve el umbral (la piedra es gris sólido): hay que recortarlo a mano por debajo de las zapatillas.
 
-La resolución de origen alcanza de sobra: para una figura de 300–500 px de alto en el lienzo 4K, partir de 819–1024 px deja margen.
+**Corrección respecto de la versión previa de esta sección.** Se afirmaban además dos problemas que la medición desmintió, y que costaban una pasada de simplificación de línea que resulta innecesaria:
+
+- El halo por artefactos de compresión alrededor de la tinta existe, pero es de **1 píxel** y desaparece en el downscale. Sobre arena clara es invisible incluso antes de reducir. Solo condiciona *dónde* se puede pegar: sobre el río turquesa o vanos oscuros sí se notaría.
+- El choque de estilo se evaluó al tamaño de los archivos fuente, no al tamaño real de destino. Compuestos a su escala objetivo (Tito 207 px, Lola 302 px de alto sobre el lienzo 4K, factores 0,25 y 0,30), la trama interna colapsa a textura y el sombreado suave se aplana solo. El grosor de contorno **queda en la misma familia que el del fondo**, no más pesado: al reducir la figura se reduce su línea con ella. No hay pasada de simplificación que hacer.
+
+Lo que sí queda como diferencia visible es el **registro de saturación** — la campera de Lola es el objeto más saturado del cuadro —, pero eso no es un defecto del asset sino consecuencia directa de la regla de identidad del §1, y se acepta: ver más abajo.
+
+La resolución de origen alcanza de sobra: para una figura de 200–500 px de alto en el lienzo 4K, partir de 819–1024 px deja margen.
+
+### Vestuario de los personajes principales (decidido)
+
+La regla de identidad del §1 **se mantiene sin excepciones**: Tito, Lola y el resto de personajes principales conservan su vestuario actual en los 10 escenarios, sin adaptarlo a la época. Se acepta la consecuencia de jugabilidad: en una multitud de lino egipcio, la campera floral de Lola es lo más conspicuo del cuadro y la vuelve fácil de encontrar. La dificultad de esos personajes no se regula por camuflaje de vestuario, sino por las palancas del §4 y §5 — densidad de la multitud, oclusión parcial, contraste local del sitio de inserción y siembra de decoys del mismo croma en los niveles altos.
 
 ## 6. Metodología de generación de escenarios con IA y post-producción
 
@@ -122,7 +132,7 @@ Flujo híbrido para el arte de fondo en 4K de cada nivel:
 
 **El orden entre 3 y 4 no es negociable.** Un upscaler generativo repinta todo lo que toca: si los personajes principales ya estuvieran pegados, les alteraría el diseño — el gorro rojo/blanco, los anteojos, la campera floral de Lola — y eso viola la regla de identidad del §1. El fondo se sube de resolución primero, y los personajes se pegan después sobre un lienzo que ya no vuelve a pasar por ningún modelo.
 
-De ahí se desprende un requisito sobre los assets: las imágenes de Tito y Lola tienen que venir ya en resolución suficiente para el lienzo final. Con la convención de hitbox de 5% × 8%, un personaje ocupa **192 × 173 px** a 4K, así que el recorte de origen debe superar ese tamaño con margen. Los archivos de `assets/avatars/` sirven para los círculos de la barra superior, pero no necesariamente como fuente para pegar en el escenario.
+De ahí se desprende un requisito sobre los assets: las imágenes de Tito y Lola tienen que venir ya en resolución suficiente para el lienzo final. Según la escala medida en el §5, un personaje ocupa entre **216 y 497 px de alto** a 4K, así que el recorte de origen debe superar ese tamaño con margen — los 819–1024 px de los archivos actuales alcanzan. Los archivos de `assets/avatars/` sirven para los círculos de la barra superior, pero no necesariamente como fuente para pegar en el escenario.
 
 ### Prompt estandarizado (plantilla)
 
@@ -166,7 +176,7 @@ Con Gemini también se verificó que la negación explícita en lenguaje natural
 
 **Nota de estilo (corrección respecto del borrador previo):** Handford trabaja con contorno de pluma/rotulador y relleno de acuarela, sección por sección desde el ángulo superior izquierdo; de ahí el acabado **plano, sin sombras proyectadas ni volumen**. Esto no es solo fidelidad estilística: un fondo sin luz direccional es lo que permite pegar a Tito y Lola en post-producción sin que la ausencia de sombra propia los delate. El descriptor `vivid saturated color palette` del borrador venía de listados de prompts para IA, no del análisis de los libros, y además perjudica la jugabilidad — el fondo de croma medio es el *presupuesto de contraste* que hace que el objetivo sea encontrable. La saturación del fondo queda entonces como palanca de dificultad: apagada y sin rojos en los niveles fáciles (el gorro de Tito salta), más croma y más rojo/blanco sembrado en los difíciles (se camufla).
 
-También se reemplazó `top-down isometric panoramic perspective`, que mezcla dos proyecciones incompatibles y los modelos resuelven de forma errática. La vista casi ortográfica tiene una ventaja de pipeline: sin escorzo, un personaje mide lo mismo en cualquier punto del cuadro, así que la convención de hitbox fija en % (5% × 8%) funciona en todo el lienzo.
+También se reemplazó `top-down isometric panoramic perspective`, que mezcla dos proyecciones incompatibles y los modelos resuelven de forma errática. La vista casi ortográfica tiene una ventaja de pipeline: sin escorzo, un personaje mide aproximadamente lo mismo en cualquier punto del cuadro, lo que simplifica el dimensionado de hitboxes (aunque el valor concreto se mide por lámina, ver §5).
 
 Pendiente: redactar el bloque variable de cada uno de los 10 mapas de la tabla del §4 (hoy no existe ninguno redactado con esta plantilla corregida).
 
@@ -174,7 +184,7 @@ Pendiente: redactar el bloque variable de cada uno de los 10 mapas de la tabla d
 
 Escribir "4K" o "3840×2160" en el prompt **no cambia las dimensiones de salida**. Los modelos generan a su resolución nativa (hoy típicamente entre ~1024 y ~2048 px de lado) y el tamaño real se fija por parámetro de la API o la interfaz (`--ar`, `size`, `width`/`height`), no por texto. Un `High resolution 4K` en el prompt funciona a lo sumo como token estético, así que se quitó del bloque fijo; el objetivo de 3840×2160 del §3 pasa a los metadatos de cada nivel.
 
-El camino real a 4K es un **upscale con reintroducción de detalle** (img2img por tiles o upscaler generativo), no una interpolación simple. La diferencia importa por el zoom: con `maxZoom` en 3.5x, una hitbox de 5% × 8% (192 × 173 px a 4K) que en la generación nativa medía ~70 px se vería en pantalla a ~670 px, casi diez veces su detalle real. El refinado por tiles genera detalle nuevo y legítimo en cada porción en vez de agrandar píxeles existentes.
+El camino real a 4K es un **upscale con reintroducción de detalle** (img2img por tiles o upscaler generativo), no una interpolación simple. La diferencia importa por el zoom: cualquier región que en la generación nativa medía unas decenas de píxeles se magnifica varias veces al ampliar sobre el lienzo 4K, y sin detalle nuevo eso son píxeles agrandados. El refinado por tiles genera detalle nuevo y legítimo en cada porción en vez de agrandar píxeles existentes.
 
 A favor: este estilo es de los mejores casos posibles para super-resolución. Color plano, bordes duros y ausencia de textura fotográfica o ruido escalan mucho mejor que una imagen realista.
 
