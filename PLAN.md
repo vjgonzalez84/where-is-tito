@@ -86,16 +86,41 @@ Lo que **no** hay que tener en cuenta es la luz: al ser todo plano y sin sombras
 
 Si ningún sitio generado sirve, o se necesita al personaje en un punto concreto de la composición, la salida es **inpainting** de una región chica sobre la lámina terminada — mucho más barato que regenerar el escenario entero.
 
+### Escala real de las figuras (medido, no estimado)
+
+El §6 asumía que un personaje ocupa 5% × 8% del lienzo, unos 192 × 173 px a 4K. **Medido sobre la lámina real del nivel 1, es bastante más grande:** las figuras van del ~10% de alto en la banda superior al ~23% en la inferior. A 4K eso son entre 216 y 497 px de alto, dos a tres veces la estimación original.
+
+La causa es que la densidad de este escenario es menor que la de una lámina de Handford: menos gente, dibujada más grande. No es un defecto — corresponde al grupo Fácil del §4 — pero **invalida el 5% × 8% como valor por defecto.** Las hitboxes hay que medirlas por lámina y por profundidad, no heredarlas.
+
+Herramienta: `~/tools/upscale/grid.py` superpone una grilla porcentual sobre la lámina (cada 5%, rotulada cada 10%) para elegir sitios y calibrar cajas en el mismo espacio de coordenadas que usa el JSON.
+
+### Requisitos de los assets de personaje
+
+Revisados los archivos existentes, hay tres problemas que resolver antes de poder componer:
+
+- **No tienen canal alfa.** `tito_perdido.jpg` (1024 × 819) y `lola.jpg` (768 × 1024) son JPG sobre fondo blanco. Para pegarlos hace falta recorte con transparencia, y el JPG deja artefactos de compresión alrededor de la tinta, así que un simple *white key* deja halo. Necesitan recorte real (rembg o manual) con defringe, y guardarse como PNG.
+- **Lola está parada sobre un pedestal de piedra** que no forma parte del personaje y hay que eliminar en el recorte.
+- **El estilo no coincide con el fondo.** Ambos tienen línea de grosor variable, trama interna (el pelaje de Tito, los rizos de Lola) y sombreado suave en pliegues. El fondo generado es plano, de contorno uniforme y con mucho menos detalle interno. Al reducirlos al tamaño del vecindario, esa trama fina se convierte en suciedad y además delata que son de otra mano. Requieren pasada de simplificación: engrosar y uniformar el contorno, quitar sombreado y trama.
+
+La resolución de origen alcanza de sobra: para una figura de 300–500 px de alto en el lienzo 4K, partir de 819–1024 px deja margen.
+
 ## 6. Metodología de generación de escenarios con IA y post-producción
 
 Flujo híbrido para el arte de fondo en 4K de cada nivel:
 
 1. **Generación del fondo base con IA:** prompts estandarizados en el estilo *Where's Wally?* (línea de tinta limpia, color plano sin sombras, croma medio, personajes de relleno vestidos según la época y con la densidad que marque el grupo de dificultad del §4), **sin incluir a Tito, Lola ni al resto de personajes principales** — esos se insertan a mano después.
-2. **Upscale a 3840 × 2160:** el fondo sale del generador a resolución nativa (~1024–2048 px), así que se lleva a 4K con un upscale que reintroduce detalle (img2img por tiles o upscaler generativo), no con interpolación simple. Ver "Resolución" más abajo.
-3. **Post-producción manual:** recién sobre el fondo ya en 4K se insertan las imágenes provistas de Tito, Lola y demás personajes principales, sin alterar su diseño, en ubicaciones estratégicas siguiendo la regla de dispersión.
-4. **Calibración de hitboxes:** una vez posicionados en la escena final, se calculan sus coordenadas porcentuales exactas (`x`, `y`, `width`, `height`) y se registran en el JSON del nivel — el prototipo actual ya soporta este formato.
+2. **Recorte del cielo y encuadre a 16:9.** Los modelos vuelven a meter cielo y horizonte aunque el prompt lo prohíba explícitamente — ver la nota sobre Qwen más abajo. En vez de seguir peleándolo, se recorta la franja superior y se ajusta a 16:9 exacto. Cuesta un comando y no falla nunca.
+3. **Upscale a 3840 × 2160:** el fondo recortado se lleva a 4K con Real-ESRGAN anime (receta validada más abajo).
+4. **Post-producción manual:** recién sobre el fondo ya en 4K se insertan las imágenes provistas de Tito, Lola y demás personajes principales, sin alterar su diseño, en ubicaciones estratégicas siguiendo la regla de dispersión y los criterios del §5.
+5. **Calibración de hitboxes:** una vez posicionados en la escena final, se calculan sus coordenadas porcentuales exactas y se registran en el JSON del nivel. **`x` e `y` son la esquina superior izquierda** (se mapean a `left`/`top` en `renderHitboxes()`), no el centro.
 
-**El orden entre 2 y 3 no es negociable.** Un upscaler generativo repinta todo lo que toca: si los personajes principales ya estuvieran pegados, les alteraría el diseño — el gorro rojo/blanco, los anteojos, la campera floral de Lola — y eso viola la regla de identidad del §1. El fondo se sube de resolución primero, y los personajes se pegan después sobre un lienzo que ya no vuelve a pasar por ningún modelo.
+**Generador elegido: Qwen-Image** (2688 × 1536 nativo), tras comparar contra Gemini sobre el mismo prompt. Da 1.66x de resolución lineal una vez recortado el cielo (2286 × 1286, 16:9 exacto), lo que baja el upscale de 2.79x a 1.68x. Tres aprendizajes de la comparación:
+
+- **Sacar la palabra `watercolour` del bloque de estilo.** Estaba ahí para describir el *color*, pero en un modelo de difusión arrastra la técnica entera: aguadas, degradados, volumen modelado. Gemini la ignoraba porque ya tiraba plano por su cuenta; Qwen la tomó al pie de la letra y devolvió ánforas con brillo especular y sombra propia. Sin esa palabra, y con el negativo cargado de anti-sombreado, la planitud se recupera por completo.
+- **Con Qwen sí hay campo negativo**, porque es difusión. Esto matiza la nota de más abajo sobre que el negativo resultaba prescindible: era cierto para Gemini, pero acá es la herramienta más efectiva para suprimir sombreado y conviene usarla.
+- **El cielo no se puede ganar por prompt.** "Ciudad egipcia a orillas del Nilo" es un arquetipo que en los datos de entrenamiento siempre trae cielo y horizonte, y el prior compositivo de Qwen es más terco que el de Gemini. Por eso el recorte pasó a ser un paso del flujo en vez de una instrucción.
+
+**El orden entre 3 y 4 no es negociable.** Un upscaler generativo repinta todo lo que toca: si los personajes principales ya estuvieran pegados, les alteraría el diseño — el gorro rojo/blanco, los anteojos, la campera floral de Lola — y eso viola la regla de identidad del §1. El fondo se sube de resolución primero, y los personajes se pegan después sobre un lienzo que ya no vuelve a pasar por ningún modelo.
 
 De ahí se desprende un requisito sobre los assets: las imágenes de Tito y Lola tienen que venir ya en resolución suficiente para el lienzo final. Con la convención de hitbox de 5% × 8%, un personaje ocupa **192 × 173 px** a 4K, así que el recorte de origen debe superar ese tamaño con margen. Los archivos de `assets/avatars/` sirven para los círculos de la barra superior, pero no necesariamente como fuente para pegar en el escenario.
 
@@ -117,7 +142,9 @@ Cada prompt se arma con un **bloque de estilo fijo** (idéntico en los 10 nivele
 >
 > `STYLE: crisp uniform black ink outlines, flat cel-style colour fills under even ambient light, every surface a single solid tone, no shading and no cast shadows. Low-to-medium chroma watercolour palette — colours varied and numerous but softly muted rather than neon. Wide 16:9 aspect ratio, artwork bleeding to all four edges. Every background figure fully drawn with distinct period clothing and readable facial features. Anonymous background crowd only.`
 
-**La sección `FRAMING` es la que más pesa, y no estaba en el borrador.** La primera prueba del nivel 1 salió con cielo y horizonte en el 15% superior, y eso arrastraba dos fallas más: obligaba al modelo a meter perspectiva (las figuras de abajo medían el triple que las del fondo, lo que **rompe la convención de hitbox fija en %**), y desperdiciaba lienzo donde no se puede parar a nadie a nivel de suelo. Las láminas de Handford no tienen cielo: la escena llena el cuadro entero. Al pedirlo explícitamente, junto con describir el Nilo como banda horizontal en vez de río que se aleja, las dos fallas se corrigieron de una vez.
+**La sección `FRAMING` es la que más pesa, y no estaba en el borrador.** La primera prueba del nivel 1 salió con cielo y horizonte en el 15% superior, y eso arrastraba dos fallas más: obligaba al modelo a meter perspectiva (las figuras de abajo medían el triple que las del fondo), y desperdiciaba lienzo donde no se puede parar a nadie a nivel de suelo.
+
+**Corrección sobre la perspectiva y las hitboxes.** En versiones anteriores de este documento se afirmó que la recesión "rompe la convención de hitbox fija en %". Está sobredimensionado: el JSON le da a cada objetivo su propio `width` y `height`, así que la escala variable **ya está soportada**. Lo que se pierde no es la viabilidad sino la comodidad de un tamaño estándar — cada personaje hay que escalarlo al vecindario donde se pega y ajustarle la caja acorde, que es trabajo manual que se hace igual. La recesión es una molestia, no un bloqueante. Las láminas de Handford no tienen cielo: la escena llena el cuadro entero. Al pedirlo explícitamente, junto con describir el Nilo como banda horizontal en vez de río que se aleja, las dos fallas se corrigieron de una vez.
 
 **Sobre la paleta, corrección a la corrección.** El descriptor original `chalky beiges, dusty blues, muted greens and soft ochres dominate` produjo una lámina casi monocroma. El problema no era el croma sino el tema — lino blanco y arena en medio cuadro — así que la solución no fue subir saturación en el bloque fijo sino agregar una sección `COLOUR` que inyecte fuentes de color propias de cada época. El bloque fijo mantiene `softly muted rather than neon`.
 
