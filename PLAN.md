@@ -88,9 +88,18 @@ Si ningún sitio generado sirve, o se necesita al personaje en un punto concreto
 
 ### Escala real de las figuras (medido, no estimado)
 
-El §6 asumía que un personaje ocupa 5% × 8% del lienzo, unos 192 × 173 px a 4K. **Medido sobre la lámina real del nivel 1, es bastante más grande:** las figuras van del ~10% de alto en la banda superior al ~23% en la inferior. A 4K eso son entre 216 y 497 px de alto, dos a tres veces la estimación original.
+El §6 asumía que un personaje ocupa 5% × 8% del lienzo, unos 192 × 173 px a 4K. Medido sobre láminas reales es bastante más grande, y sobre todo **no es un valor único: cambia con la profundidad dentro de una misma lámina.**
 
-La causa es que la densidad de este escenario es menor que la de una lámina de Handford: menos gente, dibujada más grande. No es un defecto — corresponde al grupo Fácil del §4 — pero **invalida el 5% × 8% como valor por defecto.** Las hitboxes hay que medirlas por lámina y por profundidad, no heredarlas.
+| Lámina | Banda superior | Banda inferior | Gradiente |
+| --- | --- | --- | --- |
+| Prueba Gemini (descartada) | ~10% de alto | ~23% | 2,3× |
+| **Qwen (la que se usa)** | ~5–7% | ~21–26% | **~4×** |
+
+Esto **invalida el 5% × 8% como valor por defecto** y, más importante, invalida la idea de un tamaño único de personaje por lámina. El procedimiento es: elegir primero la banda de profundidad, después dimensionar la figura contra sus vecinos inmediatos, y recién entonces escribir la caja.
+
+Un adulto en la banda inferior de la lámina de Qwen mide 25–26% de alto. De ahí salen las escalas usadas en el nivel 1: un perro mediano con la cola en alto ≈ 0,5 de un adulto de su banda, y una nena de la edad de Lola ≈ 0,75 del adulto de la suya.
+
+**Los porcentajes de ancho y de alto no comparten escala.** `width` es porcentaje del ancho del lienzo y `height` del alto, así que sobre un lienzo 16:9 la relación en porcentaje no es la relación en píxeles: hay que multiplicarla por 9/16. Un objeto cuadrado en píxeles se escribe como `width` ≈ 0,56 × `height`. Medidas sobre la caja de tinta real de los assets, las relaciones son 0,94 (Tito) y 0,39 (Lola sin el pedestal) en píxeles, es decir 0,53 y 0,22 en porcentaje.
 
 Herramienta: `~/tools/upscale/grid.py` superpone una grilla porcentual sobre la lámina (cada 5%, rotulada cada 10%) para elegir sitios y calibrar cajas en el mismo espacio de coordenadas que usa el JSON.
 
@@ -176,7 +185,7 @@ Con Gemini también se verificó que la negación explícita en lenguaje natural
 
 **Nota de estilo (corrección respecto del borrador previo):** Handford trabaja con contorno de pluma/rotulador y relleno de acuarela, sección por sección desde el ángulo superior izquierdo; de ahí el acabado **plano, sin sombras proyectadas ni volumen**. Esto no es solo fidelidad estilística: un fondo sin luz direccional es lo que permite pegar a Tito y Lola en post-producción sin que la ausencia de sombra propia los delate. El descriptor `vivid saturated color palette` del borrador venía de listados de prompts para IA, no del análisis de los libros, y además perjudica la jugabilidad — el fondo de croma medio es el *presupuesto de contraste* que hace que el objetivo sea encontrable. La saturación del fondo queda entonces como palanca de dificultad: apagada y sin rojos en los niveles fáciles (el gorro de Tito salta), más croma y más rojo/blanco sembrado en los difíciles (se camufla).
 
-También se reemplazó `top-down isometric panoramic perspective`, que mezcla dos proyecciones incompatibles y los modelos resuelven de forma errática. La vista casi ortográfica tiene una ventaja de pipeline: sin escorzo, un personaje mide aproximadamente lo mismo en cualquier punto del cuadro, lo que simplifica el dimensionado de hitboxes (aunque el valor concreto se mide por lámina, ver §5).
+También se reemplazó `top-down isometric panoramic perspective`, que mezcla dos proyecciones incompatibles y los modelos resuelven de forma errática. Se esperaba además una ventaja de pipeline: sin escorzo, un personaje mediría lo mismo en cualquier punto del cuadro. **Medido sobre la lámina de Qwen, eso no ocurre** — la figura crece unas cuatro veces del borde superior al inferior (ver §5). La instrucción de proyección ortográfica plana logra eliminar el horizonte y la recesión arquitectónica, pero no aplana la escala de las figuras: el modelo mantiene su propio gradiente de profundidad. No se corrige por prompt; se absorbe midiendo la caja por banda, que es barato.
 
 Pendiente: redactar el bloque variable de cada uno de los 10 mapas de la tabla del §4 (hoy no existe ninguno redactado con esta plantilla corregida).
 

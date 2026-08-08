@@ -1,7 +1,7 @@
 {
   "levelNumber": 1,
   "title": "Nivel 1: El Gran Valle",
-  "imageSrc": "assets/levels/egipto_antiguo_test.jpg",
+  "imageSrc": "assets/levels/egipto_antiguo.jpg",
   "imageWidth": 3840,
   "imageHeight": 2160,
   "targets": [
@@ -11,10 +11,10 @@
   "avatar": "assets/avatars/tito_perdido.jpg",
   "hint": "Lleva puesto su infaltable gorro rojo con blanco y anteojos.",
   "hitbox": {
-    "x": 45.0,
-    "y": 50.0,
-    "width": 5.0,
-    "height": 8.0
+    "x": 18.15,
+    "y": 82.65,
+    "width": 7.5,
+    "height": 13.7
   }
 },
 {
@@ -23,10 +23,10 @@
   "avatar": "assets/avatars/lola.jpg",
   "hint": "Tiene pelo rizado y viste una campera azul con estampado de flores.",
   "hitbox": {
-    "x": 60.0,
-    "y": 40.0,
-    "width": 5.0,
-    "height": 8.0
+    "x": 81.65,
+    "y": 58.15,
+    "width": 3.5,
+    "height": 13.2
   }
 }
   ]
