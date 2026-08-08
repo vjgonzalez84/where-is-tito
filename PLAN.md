@@ -48,12 +48,14 @@ El jugador busca a **Tito**, una mascota perdida, dentro de escenarios históric
 
 ## 4. Niveles de dificultad y matriz de escenarios
 
-| Grupo de dificultad | Niveles / escenarios | Escala elementos | Densidad y dispersión | Visibilidad de objetivos |
-| :--- | :--- | :--- | :--- | :--- |
-| Fácil | 1. Egipto Antiguo · 2. Roma Antigua · 3. Edad Media | 1.0x | Baja cantidad de personajes y objetos. Mayor dispersión/espacio libre. | Cuerpo completo visible, sin obstrucciones principales. |
-| Media | 4. Puerto Caribeño · 5. Ruta de la Seda · 6. Viejo Oeste | 0.9x | Cantidad media de personajes y objetos, menos espacio libre entre ellos. | Medio cuerpo visible, ligeramente camuflado entre la multitud. |
-| Alta | 7. París 1889 · 8. Años 20 (Jazz) · 9. Festival Hippie 60/70 | 0.8x | Alta densidad de personajes y objetos, muy poca dispersión. | Parcialmente ocultos: solo cara y alguna extremidad (ej. una mano). |
-| Muy alta | 10. Estación Espacial (futuro) | 0.7x | Saturación máxima, aglomeración continua. | Especialmente escondido: solo la cabeza visible (sin cuerpo). |
+| Grupo de dificultad | Niveles / escenarios | Escala elementos | Densidad y dispersión | Visibilidad de objetivos | Negativos específicos del grupo |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| Fácil | 1. Egipto Antiguo · 2. Roma Antigua · 3. Edad Media | 1.0x | Baja cantidad de personajes y objetos. Mayor dispersión/espacio libre. | Cuerpo completo visible, sin obstrucciones principales. | `red and white striped clothing, red hats, densely packed crowd, overlapping figures, foreground objects covering the crowd` |
+| Media | 4. Puerto Caribeño · 5. Ruta de la Seda · 6. Viejo Oeste | 0.9x | Cantidad media de personajes y objetos, menos espacio libre entre ellos. | Medio cuerpo visible, ligeramente camuflado entre la multitud. | `red and white striped clothing, large empty areas, isolated figures` |
+| Alta | 7. París 1889 · 8. Años 20 (Jazz) · 9. Festival Hippie 60/70 | 0.8x | Alta densidad de personajes y objetos, muy poca dispersión. | Parcialmente ocultos: solo cara y alguna extremidad (ej. una mano). | `empty areas, sparse crowd, isolated figures, flat single-layer composition` (aquí el rojo/blanco **se busca**, como señuelo) |
+| Muy alta | 10. Estación Espacial (futuro) | 0.7x | Saturación máxima, aglomeración continua. | Especialmente escondido: solo la cabeza visible (sin cuerpo). | `open space, gaps in the crowd, single-layer composition, calm or orderly arrangement` |
+
+La columna de negativos aplica **además** de la lista negativa universal del §6. A cada nivel se le suma su propio negativo de anacronismos (ej. para Egipto: `modern clothing, phones, cars, electric lighting`), que se redacta junto al bloque variable.
 
 `level1.json` hoy usa un placeholder Picsum de 3840×2160 — ya respeta la resolución base, falta reemplazar por el arte final de "Egipto Antiguo".
 
@@ -67,7 +69,7 @@ El jugador busca a **Tito**, una mascota perdida, dentro de escenarios históric
 
 Flujo híbrido para el arte de fondo en 4K de cada nivel:
 
-1. **Generación del fondo base con IA:** prompts estandarizados en el estilo *Where's Waldo?* (líneas de tinta limpias, paleta saturada, alta densidad de personajes de relleno vestidos según la época), **sin incluir a Tito, Lola ni al resto de personajes principales** — esos se insertan a mano después.
+1. **Generación del fondo base con IA:** prompts estandarizados en el estilo *Where's Wally?* (línea de tinta limpia, color plano sin sombras, croma medio, personajes de relleno vestidos según la época y con la densidad que marque el grupo de dificultad del §4), **sin incluir a Tito, Lola ni al resto de personajes principales** — esos se insertan a mano después.
 2. **Post-producción manual:** se abre el fondo generado en un editor gráfico y se insertan las imágenes ya provistas de Tito, Lola y demás personajes principales, sin alterar su diseño, en ubicaciones estratégicas siguiendo la regla de dispersión.
 3. **Calibración de hitboxes:** una vez posicionados en la escena final, se calculan sus coordenadas porcentuales exactas (`x`, `y`, `width`, `height`) y se registran en el JSON del nivel — el prototipo actual ya soporta este formato.
 
@@ -75,11 +77,21 @@ Flujo híbrido para el arte de fondo en 4K de cada nivel:
 
 Cada prompt se arma con un **bloque de estilo fijo** (idéntico en los 10 niveles, para que la serie sea visualmente coherente) más un **bloque variable** por nivel. Ambos **excluyen explícitamente a los personajes principales**.
 
-**Bloque de estilo fijo:**
+**Bloque de estilo fijo — todo en positivo:**
 
-> `A massive, detailed panoramic illustration of [ENTORNO], in the style of Martin Handford's Where's Wally. Crisp uniform black ink outlines, flat cel-style color fills, no gradients, no cast shadows, no directional lighting, no volumetric shading. Highly polychrome but low-to-medium chroma watercolour palette: chalky beiges, dusty blues, muted greens and soft ochres dominate, with generous neutral ground areas between the figures. High-angle oblique bird's-eye view, near-orthographic with minimal perspective diminishment — figures at the top of the frame are nearly the same size as at the bottom. Wide 16:9 aspect ratio. Every background figure fully drawn with distinct period clothing and readable facial features, no blurred or blobby crowd filler. Negative: no soft shading, no gradients, no glossy 3D rendering, no depth of field, no legible text or signage, no watermark or frame, no specific named or recurring characters — background crowd only.`
+> `A massive, detailed panoramic illustration of [ENTORNO], in the style of Martin Handford's Where's Wally. Crisp uniform black ink outlines, flat cel-style color fills under even ambient light, every surface a single solid tone. Highly polychrome but low-to-medium chroma watercolour palette: chalky beiges, dusty blues, muted greens and soft ochres dominate, with generous neutral ground areas between the figures. High-angle oblique bird's-eye view, near-orthographic with minimal perspective diminishment — figures at the top of the frame are nearly the same size as at the bottom. Wide 16:9 aspect ratio, artwork bleeding to all four edges. Every background figure fully drawn with distinct period clothing and readable facial features. Signage and inscriptions rendered as abstract decorative marks. Anonymous background crowd only.`
 
-**Bloque variable por nivel:** `[ENTORNO]` de época y props + densidad de multitud + escala de figuras + capas oclusoras + zonas libres reservadas repartidas en los cuatro cuadrantes + señuelos, todo según el grupo de dificultad del §4.
+**Lista negativa universal — va en el campo `negative prompt`, no en el prompt:**
+
+> `cast shadows, drop shadows, soft shading, gradients, ambient occlusion, glossy 3D render, cinematic lighting, depth of field, blur, bokeh, legible text, lettering, numerals, watermark, signature, frame, border, vignette, Wally, Waldo, blobby or featureless crowd filler, photorealism`
+
+A esa lista se le suman los negativos del grupo de dificultad y los de anacronismo del nivel (columna del §4).
+
+**Por qué duplicado.** El negativo es un campo aparte, no texto del prompt: en los modelos de difusión entra por *classifier-free guidance*, que calcula una predicción condicionada al positivo y otra al negativo y se aleja activamente de la segunda. Pero varios modelos actuales (autorregresivos tipo GPT-image o Gemini) **no tienen ese campo**, y ahí escribir "no shadows" dentro del prompt puede ser contraproducente, porque el token queda igual en el condicionamiento. Por eso cada restricción se expresa dos veces: en positivo dentro del prompt, que funciona en cualquier arquitectura (`flat cel-style fills under even ambient light` en vez de `no shadows`; `signage as abstract decorative marks` en vez de `no text`), y como lista negativa para los modelos que la soporten.
+
+**El negativo crítico son las rayas rojas y blancas.** Al invocar el estilo *Where's Wally*, el modelo genera figuras a rayas rojo/blanco por su cuenta — es el rasgo más asociado a la serie. En los niveles fáciles eso camuflaría a Tito por accidente y rompe la curva de dificultad, así que va como negativo duro; en los niveles altos se buscan deliberadamente como señuelos. Es la misma palanca de contraste de la nota de estilo, implementada del lado negativo.
+
+**Bloque variable por nivel:** `[ENTORNO]` de época y props + densidad de multitud + escala de figuras + capas oclusoras + zonas libres reservadas repartidas en los cuatro cuadrantes + señuelos + negativos propios, todo según el grupo de dificultad del §4.
 
 **Nota de estilo (corrección respecto del borrador previo):** Handford trabaja con contorno de pluma/rotulador y relleno de acuarela, sección por sección desde el ángulo superior izquierdo; de ahí el acabado **plano, sin sombras proyectadas ni volumen**. Esto no es solo fidelidad estilística: un fondo sin luz direccional es lo que permite pegar a Tito y Lola en post-producción sin que la ausencia de sombra propia los delate. El descriptor `vivid saturated color palette` del borrador venía de listados de prompts para IA, no del análisis de los libros, y además perjudica la jugabilidad — el fondo de croma medio es el *presupuesto de contraste* que hace que el objetivo sea encontrable. La saturación del fondo queda entonces como palanca de dificultad: apagada y sin rojos en los niveles fáciles (el gorro de Tito salta), más croma y más rojo/blanco sembrado en los difíciles (se camufla).
 
