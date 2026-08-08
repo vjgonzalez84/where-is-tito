@@ -12,13 +12,13 @@ Ya existe un prototipo funcional de un solo archivo (`index.html`, ~310 líneas,
 | Implementado | Pendiente |
 | :--- | :--- |
 | Carga dinámica de nivel vía `fetch` a `levels/levelN.json` | Solo existe `level1.json`; faltan los 9 restantes |
-| Pan y zoom con mouse y touch (drag, rueda, pinch-to-zoom) unificados vía Pointer Events | Zoom in máximo diferenciado por dispositivo (hoy fijo en 3.5x para todos) |
+| Pan y zoom con mouse y touch (drag, rueda, pinch-to-zoom) unificados vía Pointer Events | Zoom in máximo diferenciado por dispositivo (hoy fijo en 1.5x para todos) |
 | Clamp de posición con rebote elástico (resistencia progresiva + snap-back animado) en los límites | |
 | Minimapa con recuadro de viewport | Minimapa no es arrastrable/interactivo todavía |
 | Barra superior con avatares de objetivos y estado "encontrado" | Sin transición automática al siguiente nivel tras ganar |
 | Hitboxes en % (x/y/width/height) sobre el JSON | Hitboxes son `<div>` visibles (borde rojo punteado) — hoy están pensadas para calibración, deben ocultarse en producción |
 | Modal de victoria | Sin selector de nivel / progreso persistente entre niveles |
-| `imageSrc` de `level1.json` apunta a un placeholder de Picsum | Falta el arte final 4K de cada escenario |
+| Nivel 1 terminado y publicado: lámina 4K propia con Tito y Lola montados y cajas calibradas | Faltan los 9 escenarios restantes |
 
 Personajes ya definidos en `level1.json` y `assets/avatars/`:
 - **Tito** (`tito_perdido.jpg`) — la mascota perdida, cuerpo de perro con gorro rojo/blanco y anteojos.
@@ -61,7 +61,7 @@ La columna de negativos aplica **además** de la lista negativa universal del §
 
 **Cláusula de legibilidad para los grupos Alta y Muy alta.** En esos niveles la densidad puede devolver un muro de figuras fusionadas, sin un solo punto de suelo libre donde apoyar a un personaje. Se agrega al bloque variable de esos niveles: `crowd remains legible, with narrow gaps of visible ground between clusters of figures`. Es lo mismo que evita la papilla de siluetas pegadas, así que sirve doble. Nótese que los negativos de esos grupos dicen `large empty areas`, no `empty areas`: el hueco estrecho se busca, el claro amplio no.
 
-`level1.json` hoy usa un placeholder Picsum de 3840×2160 — ya respeta la resolución base, falta reemplazar por el arte final de "Egipto Antiguo".
+El nivel 1 ("Egipto Antiguo") ya usa su arte final en 3840×2160. Los 9 restantes siguen sin lámina.
 
 ## 5. Lineamientos para inserción y ubicación de personajes principales
 
@@ -142,6 +142,24 @@ Flujo híbrido para el arte de fondo en 4K de cada nivel:
 **El orden entre 3 y 4 no es negociable.** Un upscaler generativo repinta todo lo que toca: si los personajes principales ya estuvieran pegados, les alteraría el diseño — el gorro rojo/blanco, los anteojos, la campera floral de Lola — y eso viola la regla de identidad del §1. El fondo se sube de resolución primero, y los personajes se pegan después sobre un lienzo que ya no vuelve a pasar por ningún modelo.
 
 De ahí se desprende un requisito sobre los assets: las imágenes de Tito y Lola tienen que venir ya en resolución suficiente para el lienzo final. Según la escala medida en el §5, un personaje ocupa entre **216 y 497 px de alto** a 4K, así que el recorte de origen debe superar ese tamaño con margen — los 819–1024 px de los archivos actuales alcanzan. Los archivos de `assets/avatars/` sirven para los círculos de la barra superior, pero no necesariamente como fuente para pegar en el escenario.
+
+### El pipeline, ya recorrido de punta a punta (nivel 1)
+
+El nivel 1 está terminado y publicado. Números reales de la corrida, para presupuestar los otros nueve:
+
+| Paso | Qué se hizo | Costo |
+| --- | --- | --- |
+| Generar | Qwen-Image, prompt del §6 | 2688 × 1536 |
+| Recortar cielo | A 16:9 exacto | 2286 × 1286 |
+| Escalar | Real-ESRGAN anime, 4x por tiles de 192 y después Lanczos a la medida | **144 tiles, 597 s en CPU** |
+| Componer | `tools/compose.py` | segundos |
+| Calibrar | Medición por banda sobre grilla porcentual | — |
+
+**El recorte de personajes no necesita modelo de segmentación.** Los assets vienen en JPG sobre blanco uniforme (65–68% blanco puro medido) y un umbral `R,G,B > 240` aplicado a resolución completa alcanza: no perfora los blancos propios de las figuras, porque están dibujados en crema sombreado. El borde duro que deja se antialiasea solo al reducir la figura, y el halo de compresión es de 1 px — invisible sobre arena clara, visible sobre agua o vanos oscuros, así que condiciona el sitio pero no el método. Lo único manual fue quitar el pedestal de piedra de Lola, que es gris sólido y el umbral no toca. Los recortes ya resueltos quedan versionados en `assets/avatars/*_recorte.png` y no hay que rehacerlos por nivel.
+
+**El estilo pega sin retoque.** No hizo falta la pasada de simplificación de línea que este plan daba por necesaria: a escala de destino la trama interna colapsa a textura, el sombreado suave se aplana y el grosor de contorno queda en la misma familia que el del fondo.
+
+**Nota de publicación:** el repositorio necesita un `.nojekyll`. Sin él, GitHub Pages pasa el sitio por Jekyll en cada build aunque sea HTML y JS planos, y ahí fue donde falló el deploy de la lámina del nivel 1 (`Page build failed`, sin más detalle). Con el archivo presente el build pasa en ~26 s.
 
 ### Prompt estandarizado (plantilla)
 
@@ -277,16 +295,19 @@ Formato ya validado y en uso por `level1.json` (se ajustan nombres de campo mín
 
 1. **Fase 1: Prototipo base (PoC)** — motor de pan/zoom con soporte mouse y táctil, rebote elástico, límites min/max, recuadro de minimapa, detección de clics en porcentaje. **~90% completo**: falta minimapa arrastrable y diferenciar zoom máximo por dispositivo.
 2. **Fase 2: Interfaz de usuario y niveles** — barra superior, modales de victoria, carga dinámica de JSON por nivel. **Base completa**; falta flujo de avance automático entre niveles y selector/progreso de niveles.
-3. **Fase 3: Integración de personajes y calibración** — generación de los 10 escenarios vía IA (con la plantilla de prompt del §6, sin personajes principales), upscale a 4K, inserción manual de Tito/Lola/demás sobre el fondo ya escalado y ajuste fino de hitboxes. **No iniciada** — solo existe el placeholder de Picsum en el nivel 1.
+3. **Fase 3: Integración de personajes y calibración** — generación de los 10 escenarios vía IA (con la plantilla de prompt del §6, sin personajes principales), upscale a 4K, inserción manual de Tito/Lola/demás sobre el fondo ya escalado y ajuste fino de hitboxes. **1 de 10 escenarios terminados.** El nivel 1 recorrió el pipeline completo y está publicado; el método quedó validado y automatizado, así que los 9 restantes son repetición, no investigación.
 4. **Fase 4: Optimización mobile y pruebas** — gestos táctiles, comportamiento elástico del zoom, rendimiento en distintos dispositivos. **No iniciada.**
 
 ## 10. Próximos pasos sugeridos
 
-1. ~~Elegir modelo generador y validar el bloque de estilo~~ — **hecho**. Gemini, validado con dos pruebas del nivel 1 (ver §6). Falta la mitad del pipeline: **validar el upscale**. Gemini entrega 1376 × 768, así que hacen falta 2.79x para llegar a 3840 y una figura mide apenas 61 px nativos. Hay que escalar la lámina de prueba y mirar un recorte al 100% de una cara del mercado: si se convierte en papilla, el zoom a 3.5x no vale nada y hay que replantear (generar por secciones y componer, o buscar mayor resolución nativa). Es el último riesgo sin retirar y bloquea todo lo demás.
-2. Redactar los 10 prompts de escenario (§6) usando la plantilla ya validada, uno por fila del §4.
-3. Hacer el minimapa interactivo (arrastrar el recuadro para navegar).
-4. Definir y crear `levels/level2.json` … `level10.json` con la misma estructura que `level1.json`.
-5. Ocultar las hitboxes en producción (mantener un modo debug opcional para calibración).
-6. Implementar avance automático al siguiente nivel desde el modal de victoria.
-7. Diferenciar el zoom in máximo por tipo de dispositivo (desktop/tablet/smartphone), según la tabla del §7B.
-8. Aplicar una leve transparencia al contenedor del minimapa y al recuadro verde de viewport, para que estorben menos la visibilidad del escenario principal.
+1. ~~Elegir modelo generador, validar el bloque de estilo y el upscale~~ — **hecho**. Qwen-Image como generador (ver §6), Real-ESRGAN anime local para el escalado. El pipeline completo está recorrido de punta a punta en el nivel 1: no queda ningún riesgo abierto que bloquee al resto.
+2. ~~Validar el montaje de los personajes principales~~ — **hecho** en el nivel 1, con el nivel publicado y jugable. Ver la nota de cierre del §6.
+3. Redactar los 9 prompts de escenario restantes (§6) usando la plantilla ya validada, uno por fila del §4.
+4. Repetir el pipeline del §6 en los 9 escenarios restantes: generar, recortar cielo, escalar, componer con `tools/compose.py`, medir cajas por banda.
+5. Hacer el minimapa interactivo (arrastrar el recuadro para navegar).
+6. Definir y crear `levels/level2.json` … `level10.json` con la misma estructura que `level1.json`.
+7. Ocultar las hitboxes en producción (mantener un modo debug opcional para calibración).
+8. Implementar avance automático al siguiente nivel desde el modal de victoria.
+9. Diferenciar el zoom in máximo por tipo de dispositivo (desktop/tablet/smartphone), según la tabla del §7B.
+10. Aplicar una leve transparencia al contenedor del minimapa y al recuadro verde de viewport, para que estorben menos la visibilidad del escenario principal.
+11. Verificar en dispositivo si las cajas del nivel 1 se sienten chicas al tocar, sobre todo la de Lola: es angosta porque la figura lo es, y el margen de 0,35% por lado se puso a ojo, sin datos de uso.
