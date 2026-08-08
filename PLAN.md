@@ -52,10 +52,12 @@ El jugador busca a **Tito**, una mascota perdida, dentro de escenarios históric
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | Fácil | 1. Egipto Antiguo · 2. Roma Antigua · 3. Edad Media | 1.0x | Baja cantidad de personajes y objetos. Mayor dispersión/espacio libre. | Cuerpo completo visible, sin obstrucciones principales. | `red and white striped clothing, red hats, densely packed crowd, overlapping figures, foreground objects covering the crowd` |
 | Media | 4. Puerto Caribeño · 5. Ruta de la Seda · 6. Viejo Oeste | 0.9x | Cantidad media de personajes y objetos, menos espacio libre entre ellos. | Medio cuerpo visible, ligeramente camuflado entre la multitud. | `red and white striped clothing, large empty areas, isolated figures` |
-| Alta | 7. París 1889 · 8. Años 20 (Jazz) · 9. Festival Hippie 60/70 | 0.8x | Alta densidad de personajes y objetos, muy poca dispersión. | Parcialmente ocultos: solo cara y alguna extremidad (ej. una mano). | `empty areas, sparse crowd, isolated figures, flat single-layer composition` (aquí el rojo/blanco **se busca**, como señuelo) |
-| Muy alta | 10. Estación Espacial (futuro) | 0.7x | Saturación máxima, aglomeración continua. | Especialmente escondido: solo la cabeza visible (sin cuerpo). | `open space, gaps in the crowd, single-layer composition, calm or orderly arrangement` |
+| Alta | 7. París 1889 · 8. Años 20 (Jazz) · 9. Festival Hippie 60/70 | 0.8x | Alta densidad de personajes y objetos, muy poca dispersión. | Parcialmente ocultos: solo cara y alguna extremidad (ej. una mano). | `large empty areas, sparse crowd, isolated figures, flat single-layer composition` (aquí el rojo/blanco **se busca**, como señuelo) |
+| Muy alta | 10. Estación Espacial (futuro) | 0.7x | Saturación máxima, aglomeración continua. | Especialmente escondido: solo la cabeza visible (sin cuerpo). | `large empty areas, sparse crowd, isolated figures, single-layer composition, calm or orderly arrangement` |
 
 La columna de negativos aplica **además** de la lista negativa universal del §6. A cada nivel se le suma su propio negativo de anacronismos (ej. para Egipto: `modern clothing, phones, cars, electric lighting`), que se redacta junto al bloque variable.
+
+**Cláusula de legibilidad para los grupos Alta y Muy alta.** En esos niveles la densidad puede devolver un muro de figuras fusionadas, sin un solo punto de suelo libre donde apoyar a un personaje. Se agrega al bloque variable de esos niveles: `crowd remains legible, with narrow gaps of visible ground between clusters of figures`. Es lo mismo que evita la papilla de siluetas pegadas, así que sirve doble. Nótese que los negativos de esos grupos dicen `large empty areas`, no `empty areas`: el hueco estrecho se busca, el claro amplio no.
 
 `level1.json` hoy usa un placeholder Picsum de 3840×2160 — ya respeta la resolución base, falta reemplazar por el arte final de "Egipto Antiguo".
 
@@ -64,6 +66,23 @@ La columna de negativos aplica **además** de la lista negativa universal del §
 - **Definición por nivel:** cada mapa define la cantidad de personajes principales a buscar, con descripción de la acción/pose que realiza cada uno y su avatar para la barra superior.
 - **Regla de dispersión máxima:** los personajes a buscar se distribuyen ampliamente por el mapa. Prohibido agruparlos en el mismo cuadrante o zona inmediata.
 - **Integración con la escena:** cada personaje realiza una acción contextual coherente con la época (interactuando con un objeto o personaje secundario), respetando el nivel de visibilidad de la matriz de dificultad — pero sin alterar su vestuario/diseño base (ver regla de identidad en §1).
+
+### Elección del sitio de inserción
+
+**El sitio no se reserva en el prompt, se elige después sobre la lámina terminada.** No se le puede pedir a un modelo un hueco en una coordenada dada — no tiene control espacial confiable desde texto, y pedir "áreas vacías" en abstracto ralea la composición entera de forma pareja, que es lo contrario de lo que sirve. Además un personaje parado en un espacio que estaba reservado para él se nota: queda con aura, recortado y apoyado encima. Lo que el prompt debe conseguir es que la lámina sea **pegable en muchos puntos**, no que traiga un lugar apartado.
+
+Criterios para elegir cada sitio, una vez generado y escalado el fondo:
+
+- **Hueco intersticial, no claro.** El espacio entre dos figuras de fondo, del tamaño de un personaje (~192 × 173 px a 1.0x, ver §6) más un pequeño margen. En los libros originales Wally nunca está en un descampado: está encajado en la multitud.
+- **Suelo transitable debajo.** Con vista casi cenital el personaje tiene un punto de contacto implícito; si el hueco cae sobre agua, un techo o una pared, flota.
+- **Vecinos de escala comparable.** El hueco debe lindar con figuras humanas de altura estándar, no con estatuas ni con elementos lejanos.
+- **Contraste cromático local — la palanca real de dificultad.** Que Tito se encuentre fácil o difícil depende casi enteramente del color inmediatamente detrás de él, no de la densidad global. El gorro rojo/blanco contra un muro beige salta al instante por más cargada que esté la lámina; contra un toldo a rayas rojas y blancas desaparece. Por eso en los niveles altos conviene pedir **escenografía** rojo/blanco (toldos, banderines, sombrillas, carpas) y no solo gente a rayas.
+- **Oclusor con silueta recortable** para los niveles de visibilidad parcial: hace falta un elemento en primer plano que se pueda enmascarar en el editor para meter al personaje por detrás. El estilo plano de color liso y contorno duro juega a favor acá; un fondo con degradados sería inviable de recortar.
+- **Margen respecto de los bordes.** Acotar las hitboxes a ~3–95% en ambos ejes: un personaje pegado al borde del lienzo queda incómodo de inspeccionar con el clamp y el rebote elástico del §7B.
+
+Lo que **no** hay que tener en cuenta es la luz: al ser todo plano y sin sombras no hay dirección lumínica que matchear. Ese es el rédito de la decisión de estilo del §6.
+
+Si ningún sitio generado sirve, o se necesita al personaje en un punto concreto de la composición, la salida es **inpainting** de una región chica sobre la lámina terminada — mucho más barato que regenerar el escenario entero.
 
 ## 6. Metodología de generación de escenarios con IA y post-producción
 
