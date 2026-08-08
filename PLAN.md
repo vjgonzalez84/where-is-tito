@@ -12,8 +12,8 @@ Ya existe un prototipo funcional de un solo archivo (`index.html`, ~310 líneas,
 | Implementado | Pendiente |
 | :--- | :--- |
 | Carga dinámica de nivel vía `fetch` a `levels/levelN.json` | Solo existe `level1.json`; faltan los 9 restantes |
-| Pan y zoom con mouse (drag + rueda) | Sin soporte táctil (touch drag, pinch-to-zoom) |
-| Clamp de posición dentro del lienzo | Sin rebote elástico (bounce back) en los límites |
+| Pan y zoom con mouse y touch (drag, rueda, pinch-to-zoom) unificados vía Pointer Events | Zoom in máximo diferenciado por dispositivo (hoy fijo en 3.5x para todos) |
+| Clamp de posición con rebote elástico (resistencia progresiva + snap-back animado) en los límites | |
 | Minimapa con recuadro de viewport | Minimapa no es arrastrable/interactivo todavía |
 | Barra superior con avatares de objetivos y estado "encontrado" | Sin transición automática al siguiente nivel tras ganar |
 | Hitboxes en % (x/y/width/height) sobre el JSON | Hitboxes son `<div>` visibles (borde rojo punteado) — hoy están pensadas para calibración, deben ocultarse en producción |
@@ -37,7 +37,7 @@ El jugador busca a **Tito**, una mascota perdida, dentro de escenarios históric
 - **Barra superior (header de objetivos):** Rostros/avatares de los personajes a buscar, recortados en círculo. Al encontrar a un personaje recibe una marca visual (check + desaturado) — *ya implementado*.
 - **Área principal de búsqueda (viewport):** Escenario en alta resolución, sin deformar la proporción de aspecto original.
   - *Desktop:* clic-y-arrastre, scroll, zoom con rueda de mouse — *ya implementado*.
-  - *Dispositivos móviles:* touch drag + pinch-to-zoom — *pendiente*.
+  - *Dispositivos móviles:* touch drag + pinch-to-zoom, con rebote elástico en los límites — *ya implementado*.
 - **Minimapa (esquina inferior izquierda):** Vista miniaturizada completa del escenario con recuadro verde que señala la porción visible. Debe poder arrastrarse para navegar — recuadro visual *implementado*, interactividad de arrastre *pendiente*.
 - **Notificación de victoria (pop-up):** Mensaje animado "¡Ganador!" al completar la búsqueda, con opción de avanzar al siguiente nivel — modal base *implementado*, avance automático de nivel *pendiente*.
 
@@ -94,7 +94,8 @@ Pendiente: redactar el `[ENTORNO]` específico para cada uno de los 10 mapas de 
   | Desktop | 1.0x | 3.0x |
   | Tablet | 1.2x | 3.5x |
   | Smartphone | 1.5x | 4.0x |
-- **Efectos UX pendientes:** rebote elástico (bounce back) al exceder límites en táctil, re-centrado automático si la vista se sale del escenario.
+- **Efectos UX:** rebote elástico (bounce back) al exceder límites, con resistencia progresiva durante el gesto y snap-back animado al soltar — *ya implementado*. Pendiente: re-centrado automático si la vista se sale del escenario.
+- **Nota (bugs de layout en móvil, resueltos):** `body` usaba `height: 100vh`, que en navegadores móviles no descuenta el espacio de la barra de direcciones y sobreestima el viewport real, empujando el minimapa fuera del área visible — se agregó fallback a `100dvh`. Además, `#minimap-viewport` no tenía `top`/`left` explícitos, así que su posición de partida dependía del flujo normal del documento (quedaba corrida hacia abajo por ser hermana de un `<img>` inline) en vez de partir de `(0,0)` del contenedor — se fijaron explícitamente.
 
 ### C. Estructura de datos para niveles (JSON)
 
@@ -134,7 +135,7 @@ Formato ya validado y en uso por `level1.json` (se ajustan nombres de campo mín
 
 ## 9. Fases de desarrollo
 
-1. **Fase 1: Prototipo base (PoC)** — motor de pan/zoom, límites min/max, recuadro de minimapa, detección de clics en porcentaje. **~80% completo**: falta rebote elástico, minimapa arrastrable y soporte táctil.
+1. **Fase 1: Prototipo base (PoC)** — motor de pan/zoom con soporte mouse y táctil, rebote elástico, límites min/max, recuadro de minimapa, detección de clics en porcentaje. **~90% completo**: falta minimapa arrastrable y diferenciar zoom máximo por dispositivo.
 2. **Fase 2: Interfaz de usuario y niveles** — barra superior, modales de victoria, carga dinámica de JSON por nivel. **Base completa**; falta flujo de avance automático entre niveles y selector/progreso de niveles.
 3. **Fase 3: Integración de personajes y calibración** — generación de los 10 escenarios vía IA (con la plantilla de prompt del §6, sin personajes principales), inserción manual de Tito/Lola/demás y ajuste fino de hitboxes. **No iniciada** — solo existe el placeholder de Picsum en el nivel 1.
 4. **Fase 4: Optimización mobile y pruebas** — gestos táctiles, comportamiento elástico del zoom, rendimiento en distintos dispositivos. **No iniciada.**
@@ -142,12 +143,8 @@ Formato ya validado y en uso por `level1.json` (se ajustan nombres de campo mín
 ## 10. Próximos pasos sugeridos
 
 1. Redactar los 10 prompts de escenario (§6) usando la plantilla, uno por fila del §4.
-2. Implementar soporte táctil (touch drag + pinch-to-zoom) y rebote elástico en `index.html`.
-   - Unificar mouse y touch con Pointer Events (`pointerdown/move/up/cancel`) en vez de duplicar handlers de mouse y touch por separado — el drag de mouse y el de 1 dedo pasan a ser el mismo código.
-   - Detectar pinch-to-zoom con un `Map` de punteros activos: 1 puntero = pan, 2 punteros = pinch (distancia entre puntos → escala, punto medio → ancla del zoom).
-   - Rebote elástico: separar `clampPositions()` en un modo de resistencia progresiva mientras dura el gesto, y un snap-back animado (transición CSS) al soltar, para posición y para escala.
-   - Contemplar también el pinch-to-zoom de trackpad (Mac/Windows): el navegador lo reporta como evento `wheel` con `ctrlKey: true`, no como evento de puntero — sin este chequeo extra en el listener de `wheel` existente, el pellizco en trackpad no hace zoom (el scroll con mouse no se ve afectado, sigue funcionando igual).
-3. Hacer el minimapa interactivo (arrastrar el recuadro para navegar).
-4. Definir y crear `levels/level2.json` … `level10.json` con la misma estructura que `level1.json`.
-5. Ocultar las hitboxes en producción (mantener un modo debug opcional para calibración).
-6. Implementar avance automático al siguiente nivel desde el modal de victoria.
+2. Hacer el minimapa interactivo (arrastrar el recuadro para navegar).
+3. Definir y crear `levels/level2.json` … `level10.json` con la misma estructura que `level1.json`.
+4. Ocultar las hitboxes en producción (mantener un modo debug opcional para calibración).
+5. Implementar avance automático al siguiente nivel desde el modal de victoria.
+6. Diferenciar el zoom in máximo por tipo de dispositivo (desktop/tablet/smartphone), según la tabla del §7B.
