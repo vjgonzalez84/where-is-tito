@@ -1,7 +1,7 @@
 {
   "levelNumber": 1,
   "title": "Nivel 1: El Gran Valle",
-  "imageSrc": "https://picsum.photos/id/1015/3840/2160",
+  "imageSrc": "assets/levels/egipto_antiguo_test.jpg",
   "imageWidth": 3840,
   "imageHeight": 2160,
   "targets": [

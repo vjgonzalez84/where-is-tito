@@ -114,7 +114,10 @@
     let foundTargets = new Set();
     
     let scale = 1, minScale = 1;
-    const maxScale = 3.5;
+    // Absoluto: multiplica el tamaño nativo de la imagen. Sobre un lienzo 4K,
+    // 1.5x ya muestra ~1280x720 px de fuente; mas zoom deja tan poca escena a
+    // la vista que no se puede buscar.
+    const maxScale = 1.5;
     let posX = 0, posY = 0;
 
     // Estado de gestos (Pointer Events unificado: mouse + touch)

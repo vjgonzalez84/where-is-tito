@@ -151,6 +151,18 @@ El camino real a 4K es un **upscale con reintroducción de detalle** (img2img po
 
 A favor: este estilo es de los mejores casos posibles para super-resolución. Color plano, bordes duros y ausencia de textura fotográfica o ruido escalan mucho mejor que una imagen realista.
 
+**Validado — y con una corrección importante.** Más arriba se dijo que hacía falta un upscaler *generativo* que reintrodujera detalle, y que la super-resolución clásica no alcanzaba. Para arte fotorrealista es cierto; **para este estilo no**. Acá no hay textura que inventar: la información es el borde y la región lisa, y eso la SR clásica lo reconstruye muy bien. Comparado contra un Lanczos simple, el modelo devuelve contornos negros sólidos y limpios donde el Lanczos deja halo gris, y no ensucia las zonas planas. Las caras chicas no ganan rasgos nuevos, pero las figuritas de Handford tampoco los tienen.
+
+Consecuencia práctica: **no hace falta GPU.** La receta validada, corriendo en CPU:
+
+- **Modelo:** `RealESRGAN_x4plus_anime_6B` (libre, 18 MB). La variante *anime* está entrenada para color plano y contorno duro; la genérica de foto inventaría textura en las zonas lisas.
+- **Runner:** `spandrel` sobre PyTorch CPU, en un venv. Cuidado con instalar `torch` y `torchvision` del mismo índice (`--index-url .../whl/cpu`): mezclarlos con PyPI da `RuntimeError: operator torchvision::nms does not exist`.
+- **Proceso:** inferencia por tiles de 192 px con 24 px de solape para acotar la RAM, 4x hasta 5504 × 3072, recorte centrado a 16:9 y reescalado Lanczos a 3840 × 2160. Bajar desde 4x en vez de escalar justo a 2.79x sale más nítido.
+- **Costo:** ~4 minutos por lámina en 4 núcleos sin GPU. Para 10 niveles es irrelevante.
+- **Script:** `~/tools/upscale/upscale.py` (fuera del repo).
+
+La prueba también reveló que el problema real no era la resolución sino `maxScale` — ver §7B.
+
 ## 7. Arquitectura técnica y responsive
 
 ### A. Sistema de coordenadas y hitboxes invisibles
@@ -158,14 +170,10 @@ A favor: este estilo es de los mejores casos posibles para super-resolución. Co
 - Para producción, las hitboxes deben ser invisibles (hoy tienen borde rojo punteado para fines de calibración) — ajuste pendiente.
 
 ### B. Reglas y límites de zoom (constraints)
-- **Zoom out máximo (minZoom):** calculado dinámicamente para que la imagen ocupe el 100% de la ventana sin bordes vacíos (modo *contain*) — **ya implementado** en `calculateMinScale()`.
-- **Zoom in máximo (maxZoom):** entre 2.5x y 4.0x según la resolución base — hoy fijo en 3.5x, falta diferenciar por dispositivo.
-- **Comportamiento responsive objetivo:**
-  | Dispositivo | Zoom inicial | Zoom in máximo |
-  | :--- | :--- | :--- |
-  | Desktop | 1.0x | 3.0x |
-  | Tablet | 1.2x | 3.5x |
-  | Smartphone | 1.5x | 4.0x |
+- **Zoom out máximo (minZoom):** calculado dinámicamente para que la imagen ocupe el 100% de la ventana sin bordes vacíos — **ya implementado** en `calculateMinScale()`. Nota terminológica: el borrador lo llamaba modo *contain*, pero el código hace `Math.max(scaleX, scaleY)`, que es **cover**. La intención descrita (sin bordes vacíos) coincide con el código; el nombre estaba mal.
+- **`scale` es absoluto, no relativo al ajuste.** Multiplica el tamaño nativo de la imagen: con un lienzo de 3840 px en un viewport de 1920, `minScale` da 0.5 y `scale = 1.0` significa 1 px de fuente por 1 px de pantalla.
+- **Zoom in máximo (maxZoom): ~1.5x.** Corregido tras la prueba del nivel 1 — antes decía 2.5x–4.0x, que era un error de diseño. A 3.5x el viewport muestra apenas 549 × 309 px de fuente, un séptimo del ancho del lienzo: se ven dos o tres objetos sueltos. **Es inútil para jugar antes que borroso** — el zoom en un juego tipo Waldo sirve para inspeccionar una zona de multitud, no un objeto. A 1.5x se ven 1280 × 720 px de fuente, una porción de mercado entera y con las caras nítidas.
+- **La tabla responsive queda pendiente de rehacer.** Los valores del borrador (desktop 3.0x, tablet 3.5x, smartphone 4.0x) solo tendrían sentido como múltiplo del `scale` de ajuste, no como absolutos. Si se diferencia por dispositivo, conviene expresarlo como `minScale * K` y no como constante.
 - **Efectos UX:** rebote elástico (bounce back) al exceder límites, con resistencia progresiva durante el gesto y snap-back animado al soltar — *ya implementado*. Pendiente: re-centrado automático si la vista se sale del escenario.
 - **Nota (bugs de layout en móvil, resueltos):** `body` usaba `height: 100vh`, que en navegadores móviles no descuenta el espacio de la barra de direcciones y sobreestima el viewport real, empujando el minimapa fuera del área visible — se agregó fallback a `100dvh`. Además, `#minimap-viewport` no tenía `top`/`left` explícitos, así que su posición de partida dependía del flujo normal del documento (quedaba corrida hacia abajo por ser hermana de un `<img>` inline) en vez de partir de `(0,0)` del contenedor — se fijaron explícitamente.
 
