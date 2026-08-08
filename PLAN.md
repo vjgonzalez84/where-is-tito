@@ -163,6 +163,16 @@ Consecuencia práctica: **no hace falta GPU.** La receta validada, corriendo en 
 
 La prueba también reveló que el problema real no era la resolución sino `maxScale` — ver §7B.
 
+**Limitación residual: los rostros se deforman al acercarse.** No es culpa del upscaler sino de la resolución nativa de la generación. Gemini entrega 1376 × 768, donde una figura mide 61 px y su cara unos 12 px: a ese tamaño los rasgos nunca se dibujaron, así que no hay nada que recuperar. La SR limpia el contorno pero no puede inventar una cara que no existe. Con el `maxScale` corregido a 1.5x el defecto no molesta, así que **no bloquea** — pero conviene tenerlo anotado como techo de calidad.
+
+Tres caminos para levantarlo, si más adelante se quiere:
+
+1. **Generar por secciones y componer.** Es la palanca más fuerte y además es literalmente cómo trabaja Handford (§6). Cuatro cuadrantes a resolución nativa dan el doble de detalle lineal por cara (~24 px reales en vez de 12); una grilla de 3×3, el triple. El costo es la continuidad entre secciones: hay que encadenarlas con generación condicionada por imagen, no generarlas sueltas, o las junturas cantan.
+2. **Otro generador con mayor resolución nativa.** Flux o SD por servicio alcanzan ~1920 × 1088, que da ~17 px de cara — una mejora de 1.4x, modesta. Recraft e Ideogram apuntan mejor a ilustración y conviene evaluarlos. Midjourney no mejora mucho el nativo pero aporta `--sref` para consistencia de serie, que es un beneficio aparte.
+3. **Endpoints de API en vez de la interfaz de consumo**, que a veces habilitan resoluciones mayores que la web.
+
+La opción 1 es la única que escala de verdad; las otras dos son mejoras de un factor pequeño.
+
 ## 7. Arquitectura técnica y responsive
 
 ### A. Sistema de coordenadas y hitboxes invisibles
