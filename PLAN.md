@@ -165,13 +165,17 @@ La prueba también reveló que el problema real no era la resolución sino `maxS
 
 **Limitación residual: los rostros se deforman al acercarse.** No es culpa del upscaler sino de la resolución nativa de la generación. Gemini entrega 1376 × 768, donde una figura mide 61 px y su cara unos 12 px: a ese tamaño los rasgos nunca se dibujaron, así que no hay nada que recuperar. La SR limpia el contorno pero no puede inventar una cara que no existe. Con el `maxScale` corregido a 1.5x el defecto no molesta, así que **no bloquea** — pero conviene tenerlo anotado como techo de calidad.
 
-Tres caminos para levantarlo, si más adelante se quiere:
+Caminos para levantarlo, en orden de rendimiento:
 
-1. **Generar por secciones y componer.** Es la palanca más fuerte y además es literalmente cómo trabaja Handford (§6). Cuatro cuadrantes a resolución nativa dan el doble de detalle lineal por cara (~24 px reales en vez de 12); una grilla de 3×3, el triple. El costo es la continuidad entre secciones: hay que encadenarlas con generación condicionada por imagen, no generarlas sueltas, o las junturas cantan.
-2. **Otro generador con mayor resolución nativa.** Flux o SD por servicio alcanzan ~1920 × 1088, que da ~17 px de cara — una mejora de 1.4x, modesta. Recraft e Ideogram apuntan mejor a ilustración y conviene evaluarlos. Midjourney no mejora mucho el nativo pero aporta `--sref` para consistencia de serie, que es un beneficio aparte.
-3. **Endpoints de API en vez de la interfaz de consumo**, que a veces habilitan resoluciones mayores que la web.
+1. **Refinado por tiles (img2img) — la mejora recomendada.** Ultimate SD Upscale o Tiled Diffusion / MultiDiffusion parten la lámina ya escalada en porciones y corren cada una por un modelo de difusión con denoise bajo. Cada tile se procesa a resolución plena del modelo, así que **inventa detalle donde no lo había**, incluidos rasgos faciales — que es lo único capaz de resolver este defecto, porque las caras hay que crearlas, no recuperarlas. Ventaja clave sobre regenerar: conserva la composición del §6 que ya validamos, solo la refina.
+   - **Herramientas:** ComfyUI o A1111 con Ultimate SD Upscale sobre GPU alquilada (RunPod, Vast.ai) — en una sola sesión se procesan los 10 niveles. Sin instalar nada, `clarity-upscaler` en Replicate hace lo mismo y se paga por corrida; Krea y Magnific son equivalentes comerciales.
+   - **Denoise entre 0.2 y 0.35**, pasando el mismo bloque de estilo del §6. Más alto mete sombreado y textura, y ahí se pierde el color plano del que depende todo el pegado.
+   - **Va antes de pegar a los personajes**, como manda el orden del §6: el refinado repinta lo que toca, así que sobre Tito ya pegado le arruinaría el gorro y los anteojos.
+2. **Generar por secciones y componer.** Es como trabaja Handford, pero **no se puede hacer con Gemini**: devuelve siempre ~1376 × 768, así que extender la escena da una lámina más ancha, no más píxeles — la resolución no se acumula. Además los editores por instrucción re-renderizan la imagen entera en vez de preservar los píxeles intactos, y la juntura no cierra. Requiere una herramienta donde se controle el lienzo de salida, y en ese caso la opción 1 es más simple y da un resultado parecido.
+3. **Otro generador con mayor resolución nativa.** Flux o SD por servicio alcanzan ~1920 × 1088, que da ~17 px de cara — una mejora de 1.4x, modesta para el costo de migrar. Recraft e Ideogram apuntan mejor a ilustración y conviene evaluarlos. Midjourney no mejora mucho el nativo pero aporta `--sref` para consistencia de serie, que es un beneficio aparte.
+4. **Endpoints de API en vez de la interfaz de consumo**, que a veces habilitan resoluciones mayores que la web.
 
-La opción 1 es la única que escala de verdad; las otras dos son mejoras de un factor pequeño.
+Nota sobre las dos correcciones que atravesó este punto: al principio se dijo que hacía falta reintroducción generativa de detalle, después que la SR clásica alcanzaba, y finalmente que hacen falta las dos. Las tres afirmaciones eran ciertas en su ámbito. **Real-ESRGAN resuelve bordes y regiones planas**, que es la mayor parte del trabajo y basta para jugar; **el refinado por tiles es lo único que resuelve las caras**. La primera es obligatoria y ya está validada, la segunda es opcional y queda como mejora.
 
 ## 7. Arquitectura técnica y responsive
 
