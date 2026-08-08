@@ -70,8 +70,13 @@ La columna de negativos aplica **además** de la lista negativa universal del §
 Flujo híbrido para el arte de fondo en 4K de cada nivel:
 
 1. **Generación del fondo base con IA:** prompts estandarizados en el estilo *Where's Wally?* (línea de tinta limpia, color plano sin sombras, croma medio, personajes de relleno vestidos según la época y con la densidad que marque el grupo de dificultad del §4), **sin incluir a Tito, Lola ni al resto de personajes principales** — esos se insertan a mano después.
-2. **Post-producción manual:** se abre el fondo generado en un editor gráfico y se insertan las imágenes ya provistas de Tito, Lola y demás personajes principales, sin alterar su diseño, en ubicaciones estratégicas siguiendo la regla de dispersión.
-3. **Calibración de hitboxes:** una vez posicionados en la escena final, se calculan sus coordenadas porcentuales exactas (`x`, `y`, `width`, `height`) y se registran en el JSON del nivel — el prototipo actual ya soporta este formato.
+2. **Upscale a 3840 × 2160:** el fondo sale del generador a resolución nativa (~1024–2048 px), así que se lleva a 4K con un upscale que reintroduce detalle (img2img por tiles o upscaler generativo), no con interpolación simple. Ver "Resolución" más abajo.
+3. **Post-producción manual:** recién sobre el fondo ya en 4K se insertan las imágenes provistas de Tito, Lola y demás personajes principales, sin alterar su diseño, en ubicaciones estratégicas siguiendo la regla de dispersión.
+4. **Calibración de hitboxes:** una vez posicionados en la escena final, se calculan sus coordenadas porcentuales exactas (`x`, `y`, `width`, `height`) y se registran en el JSON del nivel — el prototipo actual ya soporta este formato.
+
+**El orden entre 2 y 3 no es negociable.** Un upscaler generativo repinta todo lo que toca: si los personajes principales ya estuvieran pegados, les alteraría el diseño — el gorro rojo/blanco, los anteojos, la campera floral de Lola — y eso viola la regla de identidad del §1. El fondo se sube de resolución primero, y los personajes se pegan después sobre un lienzo que ya no vuelve a pasar por ningún modelo.
+
+De ahí se desprende un requisito sobre los assets: las imágenes de Tito y Lola tienen que venir ya en resolución suficiente para el lienzo final. Con la convención de hitbox de 5% × 8%, un personaje ocupa **192 × 173 px** a 4K, así que el recorte de origen debe superar ese tamaño con margen. Los archivos de `assets/avatars/` sirven para los círculos de la barra superior, pero no necesariamente como fuente para pegar en el escenario.
 
 ### Prompt estandarizado (plantilla)
 
@@ -165,15 +170,16 @@ Formato ya validado y en uso por `level1.json` (se ajustan nombres de campo mín
 
 1. **Fase 1: Prototipo base (PoC)** — motor de pan/zoom con soporte mouse y táctil, rebote elástico, límites min/max, recuadro de minimapa, detección de clics en porcentaje. **~90% completo**: falta minimapa arrastrable y diferenciar zoom máximo por dispositivo.
 2. **Fase 2: Interfaz de usuario y niveles** — barra superior, modales de victoria, carga dinámica de JSON por nivel. **Base completa**; falta flujo de avance automático entre niveles y selector/progreso de niveles.
-3. **Fase 3: Integración de personajes y calibración** — generación de los 10 escenarios vía IA (con la plantilla de prompt del §6, sin personajes principales), inserción manual de Tito/Lola/demás y ajuste fino de hitboxes. **No iniciada** — solo existe el placeholder de Picsum en el nivel 1.
+3. **Fase 3: Integración de personajes y calibración** — generación de los 10 escenarios vía IA (con la plantilla de prompt del §6, sin personajes principales), upscale a 4K, inserción manual de Tito/Lola/demás sobre el fondo ya escalado y ajuste fino de hitboxes. **No iniciada** — solo existe el placeholder de Picsum en el nivel 1.
 4. **Fase 4: Optimización mobile y pruebas** — gestos táctiles, comportamiento elástico del zoom, rendimiento en distintos dispositivos. **No iniciada.**
 
 ## 10. Próximos pasos sugeridos
 
-1. Redactar los 10 prompts de escenario (§6) usando la plantilla, uno por fila del §4.
-2. Hacer el minimapa interactivo (arrastrar el recuadro para navegar).
-3. Definir y crear `levels/level2.json` … `level10.json` con la misma estructura que `level1.json`.
-4. Ocultar las hitboxes en producción (mantener un modo debug opcional para calibración).
-5. Implementar avance automático al siguiente nivel desde el modal de victoria.
-6. Diferenciar el zoom in máximo por tipo de dispositivo (desktop/tablet/smartphone), según la tabla del §7B.
-7. Aplicar una leve transparencia al contenedor del minimapa y al recuadro verde de viewport, para que estorben menos la visibilidad del escenario principal.
+1. Elegir modelo generador y upscaler, y validar el pipeline completo con una prueba del nivel 1 antes de redactar los 10 prompts. La elección define si la lista negativa del §6 se usa como campo aparte o hay que absorberla en positivo, cómo se pide el 16:9, y si el descriptor de paleta de croma medio da el resultado esperado.
+2. Redactar los 10 prompts de escenario (§6) usando la plantilla, uno por fila del §4.
+3. Hacer el minimapa interactivo (arrastrar el recuadro para navegar).
+4. Definir y crear `levels/level2.json` … `level10.json` con la misma estructura que `level1.json`.
+5. Ocultar las hitboxes en producción (mantener un modo debug opcional para calibración).
+6. Implementar avance automático al siguiente nivel desde el modal de victoria.
+7. Diferenciar el zoom in máximo por tipo de dispositivo (desktop/tablet/smartphone), según la tabla del §7B.
+8. Aplicar una leve transparencia al contenedor del minimapa y al recuadro verde de viewport, para que estorben menos la visibilidad del escenario principal.
