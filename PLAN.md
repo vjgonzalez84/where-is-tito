@@ -57,6 +57,8 @@ El jugador busca a **Tito**, una mascota perdida, dentro de escenarios históric
 
 La columna de negativos aplica **además** de la lista negativa universal del §6. A cada nivel se le suma su propio negativo de anacronismos (ej. para Egipto: `modern clothing, phones, cars, electric lighting`), que se redacta junto al bloque variable.
 
+**Ojo con los toldos en los grupos Fácil y Media.** En la prueba del nivel 1, pedir `coloured awnings` en la sección `COLOUR` devolvió toldos a rayas rojas y blancas — justo el elemento camuflante que estos grupos deben negar, porque compite con el gorro de Tito. La ropa sí respetó el negativo; el problema entró por la escenografía. Para los niveles 1 a 6 conviene enumerar la paleta de toldos y telas excluyendo esa combinación (ej. `awnings in ochre, teal, olive and indigo`).
+
 **Cláusula de legibilidad para los grupos Alta y Muy alta.** En esos niveles la densidad puede devolver un muro de figuras fusionadas, sin un solo punto de suelo libre donde apoyar a un personaje. Se agrega al bloque variable de esos niveles: `crowd remains legible, with narrow gaps of visible ground between clusters of figures`. Es lo mismo que evita la papilla de siluetas pegadas, así que sirve doble. Nótese que los negativos de esos grupos dicen `large empty areas`, no `empty areas`: el hueco estrecho se busca, el claro amplio no.
 
 `level1.json` hoy usa un placeholder Picsum de 3840×2160 — ya respeta la resolución base, falta reemplazar por el arte final de "Egipto Antiguo".
@@ -101,15 +103,33 @@ De ahí se desprende un requisito sobre los assets: las imágenes de Tito y Lola
 
 Cada prompt se arma con un **bloque de estilo fijo** (idéntico en los 10 niveles, para que la serie sea visualmente coherente) más un **bloque variable** por nivel. Ambos **excluyen explícitamente a los personajes principales**.
 
-**Bloque de estilo fijo — todo en positivo:**
+**Bloque de estilo fijo — todo en positivo. Validado con el nivel 1 (ver más abajo).** Se escribe en secciones rotuladas, que es la forma que dio mejor adherencia:
 
-> `A massive, detailed panoramic illustration of [ENTORNO], in the style of Martin Handford's Where's Wally. Crisp uniform black ink outlines, flat cel-style color fills under even ambient light, every surface a single solid tone. Highly polychrome but low-to-medium chroma watercolour palette: chalky beiges, dusty blues, muted greens and soft ochres dominate, with generous neutral ground areas between the figures. High-angle oblique bird's-eye view, near-orthographic with minimal perspective diminishment — figures at the top of the frame are nearly the same size as at the bottom. Wide 16:9 aspect ratio, artwork bleeding to all four edges. Every background figure fully drawn with distinct period clothing and readable facial features. Signage and inscriptions rendered as abstract decorative marks. Anonymous background crowd only.`
+> `A massive, detailed panoramic illustration of [ENTORNO], in the style of Martin Handford's Where's Wally.`
+>
+> `FRAMING: the scene completely fills the frame from edge to edge — every part of the image is ground, water, buildings or crowd, seen from above. There is no sky and no horizon line anywhere in the picture. Flat orthographic projection with no perspective recession: every human figure is drawn at exactly the same height whether it stands at the top, the middle or the bottom of the frame.`
+>
+> `SCENE: [ENTORNO detallado, props y oficios de época]. [Cualquier masa de agua se describe como banda horizontal vista desde arriba, con la orilla opuesta igual de poblada y a la misma escala de figura.] Signage and inscriptions rendered as purely decorative abstract marks.`
+>
+> `COLOUR: a richly polychrome scene, not a monochrome one. [Fuentes de color propias de la época: ropas teñidas, arquitectura pintada, mercancías, vegetación.]`
+>
+> `DENSITY: [según grupo del §4]. Every figure fully visible head to foot standing at ground level. All garments in plain solid colours.`
+>
+> `STYLE: crisp uniform black ink outlines, flat cel-style colour fills under even ambient light, every surface a single solid tone, no shading and no cast shadows. Low-to-medium chroma watercolour palette — colours varied and numerous but softly muted rather than neon. Wide 16:9 aspect ratio, artwork bleeding to all four edges. Every background figure fully drawn with distinct period clothing and readable facial features. Anonymous background crowd only.`
+
+**La sección `FRAMING` es la que más pesa, y no estaba en el borrador.** La primera prueba del nivel 1 salió con cielo y horizonte en el 15% superior, y eso arrastraba dos fallas más: obligaba al modelo a meter perspectiva (las figuras de abajo medían el triple que las del fondo, lo que **rompe la convención de hitbox fija en %**), y desperdiciaba lienzo donde no se puede parar a nadie a nivel de suelo. Las láminas de Handford no tienen cielo: la escena llena el cuadro entero. Al pedirlo explícitamente, junto con describir el Nilo como banda horizontal en vez de río que se aleja, las dos fallas se corrigieron de una vez.
+
+**Sobre la paleta, corrección a la corrección.** El descriptor original `chalky beiges, dusty blues, muted greens and soft ochres dominate` produjo una lámina casi monocroma. El problema no era el croma sino el tema — lino blanco y arena en medio cuadro — así que la solución no fue subir saturación en el bloque fijo sino agregar una sección `COLOUR` que inyecte fuentes de color propias de cada época. El bloque fijo mantiene `softly muted rather than neon`.
 
 **Lista negativa universal — va en el campo `negative prompt`, no en el prompt:**
 
 > `cast shadows, drop shadows, soft shading, gradients, ambient occlusion, glossy 3D render, cinematic lighting, depth of field, blur, bokeh, legible text, lettering, numerals, watermark, signature, frame, border, vignette, Wally, Waldo, blobby or featureless crowd filler, photorealism`
 
 A esa lista se le suman los negativos del grupo de dificultad y los de anacronismo del nivel (columna del §4).
+
+**El campo negativo resultó prescindible.** Las dos pruebas del nivel 1 se hicieron con Gemini, que no lo ofrece, y aun así no se coló ningún rojo/blanco en la ropa, no aparecieron sombras y los jeroglíficos salieron como marcas decorativas sin texto garabateado. El positivo solo alcanzó. Tiene sentido: el negativo nació como parche para modelos con mala adherencia al prompt, y los instruction-tuned actuales siguen instrucciones afirmativas bien. Conclusión práctica: **no hay razón para elegir generador por tener campo negativo**, y la lista de arriba queda como refuerzo opcional para los modelos que sí lo soporten.
+
+Con Gemini también se verificó que la negación explícita en lenguaje natural (`there is no sky and no horizon line`) se obedece sin efecto rebote. El riesgo de "no pienses en un elefante" es sobre todo un fenómeno de difusión condicionada por CLIP, no de modelos instruction-tuned. Aun así conviene redactar primero en afirmativo y dejar la negación como refuerzo.
 
 **Por qué duplicado.** El negativo es un campo aparte, no texto del prompt: en los modelos de difusión entra por *classifier-free guidance*, que calcula una predicción condicionada al positivo y otra al negativo y se aleja activamente de la segunda. Pero varios modelos actuales (autorregresivos tipo GPT-image o Gemini) **no tienen ese campo**, y ahí escribir "no shadows" dentro del prompt puede ser contraproducente, porque el token queda igual en el condicionamiento. Por eso cada restricción se expresa dos veces: en positivo dentro del prompt, que funciona en cualquier arquitectura (`flat cel-style fills under even ambient light` en vez de `no shadows`; `signage as abstract decorative marks` en vez de `no text`), y como lista negativa para los modelos que la soporten.
 
@@ -194,8 +214,8 @@ Formato ya validado y en uso por `level1.json` (se ajustan nombres de campo mín
 
 ## 10. Próximos pasos sugeridos
 
-1. Elegir modelo generador y upscaler, y validar el pipeline completo con una prueba del nivel 1 antes de redactar los 10 prompts. La elección define si la lista negativa del §6 se usa como campo aparte o hay que absorberla en positivo, cómo se pide el 16:9, y si el descriptor de paleta de croma medio da el resultado esperado.
-2. Redactar los 10 prompts de escenario (§6) usando la plantilla, uno por fila del §4.
+1. ~~Elegir modelo generador y validar el bloque de estilo~~ — **hecho**. Gemini, validado con dos pruebas del nivel 1 (ver §6). Falta la mitad del pipeline: **validar el upscale**. Gemini entrega 1376 × 768, así que hacen falta 2.79x para llegar a 3840 y una figura mide apenas 61 px nativos. Hay que escalar la lámina de prueba y mirar un recorte al 100% de una cara del mercado: si se convierte en papilla, el zoom a 3.5x no vale nada y hay que replantear (generar por secciones y componer, o buscar mayor resolución nativa). Es el último riesgo sin retirar y bloquea todo lo demás.
+2. Redactar los 10 prompts de escenario (§6) usando la plantilla ya validada, uno por fila del §4.
 3. Hacer el minimapa interactivo (arrastrar el recuadro para navegar).
 4. Definir y crear `levels/level2.json` … `level10.json` con la misma estructura que `level1.json`.
 5. Ocultar las hitboxes en producción (mantener un modo debug opcional para calibración).
