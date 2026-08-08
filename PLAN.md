@@ -73,11 +73,27 @@ Flujo híbrido para el arte de fondo en 4K de cada nivel:
 
 ### Prompt estandarizado (plantilla)
 
-Se redacta un prompt por escenario siguiendo esta plantilla, ajustando solo el `[ENTORNO]` y los elementos de época; **excluye explícitamente a los personajes principales**:
+Cada prompt se arma con un **bloque de estilo fijo** (idéntico en los 10 niveles, para que la serie sea visualmente coherente) más un **bloque variable** por nivel. Ambos **excluyen explícitamente a los personajes principales**.
 
-> `A massive, detailed panoramic illustration of [ENTORNO], in the style of Martin Handford's Where's Waldo. The scene is packed with hundreds of tiny, diverse background characters dressed and behaving accordingly to the era, performing funny everyday activities. Richly detailed period-accurate environment and props. Crisp clean ink lines, vivid saturated color palette. High resolution 4K, wide aspect ratio 16:9, top-down isometric panoramic perspective, cluttered composition with balanced open, empty areas reserved for placing hidden principal characters later. Do not include any specific named or recurring characters — background crowd only.`
+**Bloque de estilo fijo:**
 
-Pendiente: redactar el `[ENTORNO]` específico para cada uno de los 10 mapas de la tabla del §4 (hoy no existe ninguno redactado con esta plantilla corregida).
+> `A massive, detailed panoramic illustration of [ENTORNO], in the style of Martin Handford's Where's Wally. Crisp uniform black ink outlines, flat cel-style color fills, no gradients, no cast shadows, no directional lighting, no volumetric shading. Highly polychrome but low-to-medium chroma watercolour palette: chalky beiges, dusty blues, muted greens and soft ochres dominate, with generous neutral ground areas between the figures. High-angle oblique bird's-eye view, near-orthographic with minimal perspective diminishment — figures at the top of the frame are nearly the same size as at the bottom. Wide 16:9 aspect ratio. Every background figure fully drawn with distinct period clothing and readable facial features, no blurred or blobby crowd filler. Negative: no soft shading, no gradients, no glossy 3D rendering, no depth of field, no legible text or signage, no watermark or frame, no specific named or recurring characters — background crowd only.`
+
+**Bloque variable por nivel:** `[ENTORNO]` de época y props + densidad de multitud + escala de figuras + capas oclusoras + zonas libres reservadas repartidas en los cuatro cuadrantes + señuelos, todo según el grupo de dificultad del §4.
+
+**Nota de estilo (corrección respecto del borrador previo):** Handford trabaja con contorno de pluma/rotulador y relleno de acuarela, sección por sección desde el ángulo superior izquierdo; de ahí el acabado **plano, sin sombras proyectadas ni volumen**. Esto no es solo fidelidad estilística: un fondo sin luz direccional es lo que permite pegar a Tito y Lola en post-producción sin que la ausencia de sombra propia los delate. El descriptor `vivid saturated color palette` del borrador venía de listados de prompts para IA, no del análisis de los libros, y además perjudica la jugabilidad — el fondo de croma medio es el *presupuesto de contraste* que hace que el objetivo sea encontrable. La saturación del fondo queda entonces como palanca de dificultad: apagada y sin rojos en los niveles fáciles (el gorro de Tito salta), más croma y más rojo/blanco sembrado en los difíciles (se camufla).
+
+También se reemplazó `top-down isometric panoramic perspective`, que mezcla dos proyecciones incompatibles y los modelos resuelven de forma errática. La vista casi ortográfica tiene una ventaja de pipeline: sin escorzo, un personaje mide lo mismo en cualquier punto del cuadro, así que la convención de hitbox fija en % (5% × 8%) funciona en todo el lienzo.
+
+Pendiente: redactar el bloque variable de cada uno de los 10 mapas de la tabla del §4 (hoy no existe ninguno redactado con esta plantilla corregida).
+
+### Resolución: no se pide en el prompt, se resuelve en el pipeline
+
+Escribir "4K" o "3840×2160" en el prompt **no cambia las dimensiones de salida**. Los modelos generan a su resolución nativa (hoy típicamente entre ~1024 y ~2048 px de lado) y el tamaño real se fija por parámetro de la API o la interfaz (`--ar`, `size`, `width`/`height`), no por texto. Un `High resolution 4K` en el prompt funciona a lo sumo como token estético, así que se quitó del bloque fijo; el objetivo de 3840×2160 del §3 pasa a los metadatos de cada nivel.
+
+El camino real a 4K es un **upscale con reintroducción de detalle** (img2img por tiles o upscaler generativo), no una interpolación simple. La diferencia importa por el zoom: con `maxZoom` en 3.5x, una hitbox de 5% × 8% (192 × 173 px a 4K) que en la generación nativa medía ~70 px se vería en pantalla a ~670 px, casi diez veces su detalle real. El refinado por tiles genera detalle nuevo y legítimo en cada porción en vez de agrandar píxeles existentes.
+
+A favor: este estilo es de los mejores casos posibles para super-resolución. Color plano, bordes duros y ausencia de textura fotográfica o ruido escalan mucho mejor que una imagen realista.
 
 ## 7. Arquitectura técnica y responsive
 
