@@ -148,3 +148,4 @@ Formato ya validado y en uso por `level1.json` (se ajustan nombres de campo mín
 4. Ocultar las hitboxes en producción (mantener un modo debug opcional para calibración).
 5. Implementar avance automático al siguiente nivel desde el modal de victoria.
 6. Diferenciar el zoom in máximo por tipo de dispositivo (desktop/tablet/smartphone), según la tabla del §7B.
+7. Aplicar una leve transparencia al contenedor del minimapa y al recuadro verde de viewport, para que estorben menos la visibilidad del escenario principal.
